@@ -7,7 +7,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  assetsInclude: ["**/*.glb", "**/*.env"],
+  assetsInclude: ['**/*.glb', '**/*.env'],
   plugins: [
     {
       ...eslintPlugin(),
@@ -29,8 +29,8 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        // target: 'https://seb.xrplatform.io',
-        target: 'https://peb.xrplatform.io',
+        target: 'https://seb.xrplatform.io',
+        // target: 'https://peb.xrplatform.io',
         changeOrigin: true,
         secure: false
         // ws: true,
@@ -49,4 +49,4 @@ export default defineConfig({
       }
     }
   }
-});
+})

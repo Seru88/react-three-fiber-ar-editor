@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { XrpServerResponse } from 'common/types'
-import { generateInstanceID, getAuthorizationHeader } from 'common/utils'
+import { getAuthorizationHeader } from 'common/utils'
+import { generateInstanceID } from './utils'
 
 /***************************************
  *              Experience             *
@@ -60,10 +61,18 @@ export function getExperienceApi(
       '/api/v1/experiences',
       { params }
     )
-    .then(res => {
+    .then(async res => {
       const exp = res.data.experiences[0]
+      const tasks: Promise<AssetContentUrls>[] = []
+      exp.asset_transform_info?.forEach(content => {
+        content.instance_id = generateInstanceID()
+        tasks.push(
+          getAssetContentUrl(content.uuid, undefined, exp.access_token)
+        )
+      })
+      const urls = await Promise.all(tasks)
       exp.asset_transform_info?.forEach(
-        content => (content.instance_id = generateInstanceID())
+        (content, index) => (content.url = urls[index].backup_url ?? '')
       )
       return exp
     })
@@ -128,6 +137,7 @@ export function getAssetContentUrl(
 ) {
   return axios
     .get<AssetContentUrls & XrpServerResponse>(`/api/v2/asset/${uuid}/url`, {
+      params: query,
       headers: access_token
         ? {
             ...getAuthorizationHeader(access_token)
