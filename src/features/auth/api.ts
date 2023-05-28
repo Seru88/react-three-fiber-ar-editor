@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { XrpServerResponse } from 'common/types'
+import { throwNetworkError } from 'common/utils'
 
 export type User = {
   created: string
@@ -55,10 +56,13 @@ export type AuthenticationResponse = {
 //   axios.post<AuthenticationResponse>('/api/signup', data).then(res => res.data)
 
 export const loginApi = (credentials: LoginRequest) =>
-  axios.post<AuthenticationResponse>('/api/v2/login', credentials).then(res => {
-    axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
-    return res.data
-  })
+  axios
+    .post<AuthenticationResponse>('/api/v2/login', credentials)
+    .then(res => {
+      axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
+      return res.data
+    })
+    .catch(error => throwNetworkError(error))
 
 export const refreshLoginApi = (refresh_token: string) =>
   axios
@@ -73,58 +77,15 @@ export const refreshLoginApi = (refresh_token: string) =>
       axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
       return res.data
     })
+    .catch(error => throwNetworkError(error))
 
-// /**
-//  * @param id User id.
-//  * @param newCredentials Updated credentials.
-//  */
-// export const updateUserApi = (
-//   id: number,
-//   newCredentials: Partial<LoginRequest>,
-//   access_token?: string
-// ) =>
-//   axios
-//     .put<AuthenticationResponse>(`/api/user/${id}`, newCredentials, {
-//       headers: { Authorization: access_token ?? `Bearer ${access_token}` }
-//     })
-//     .then(res => res.data)
-
-// export const sendInviteCodeApi = (data: InviteData) =>
-//   axios
-//     .post<XrpServerResponse>('/api/user/invite/send_token', data)
-//     .then(res => res.data)
-
-// /**
-//  * @param uuid Email verification uuid.
-//  */
-// export const verifyEmailApi = (
-//   uuid: string,
-//   abortController?: AbortController
-// ) =>
-//   axios
-//     .put<Omit<AuthenticationResponse, 'access_token'>>(
-//       `/api/user/verify_email/${uuid}`,
-//       null,
-//       { signal: abortController?.signal }
-//     )
-//     .then(res => res.data)
-
-// export const sendResetPasswordTokenApi = (email: string) =>
-//   axios
-//     .post<XrpServerResponse>('/api/user/forgot_password/send_token', { email })
-//     .then(res => res.data)
-
-// /**
-//  * *NOTE: Use the returned respose with updateUserApi to set new password.
-//  */
-// export const resetPasswordTokenGetAuthApi = (
-//   token: string,
-//   abortController?: AbortController
-// ) =>
-//   axios
-//     .post<AuthenticationResponse>(
-//       '/api/user/forgot_password/lookup_user',
-//       { token },
-//       { signal: abortController?.signal }
-//     )
-//     .then(res => res.data)
+export const verifyLoginApi = () =>
+  axios
+    .get<AuthenticationResponse>('/api/v2/verify_login', {
+      params: { add_props: 'settings' }
+    })
+    .then(res => {
+      axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
+      return res.data
+    })
+    .catch(error => throwNetworkError(error))

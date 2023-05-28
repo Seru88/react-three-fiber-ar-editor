@@ -1,16 +1,33 @@
-import { createContext, PropsWithChildren } from 'react'
-import useSWR from 'swr'
+import {
+  useMutation,
+  UseMutationResult,
+  useQuery,
+  useQueryClient
+} from '@tanstack/react-query'
+import { createContext, PropsWithChildren, useEffect } from 'react'
+import { toast } from 'react-hot-toast'
 import { useLocalStorage } from 'usehooks-ts'
 
-import { loginApi, LoginRequest, refreshLoginApi, User } from './api'
+import {
+  AuthenticationResponse,
+  loginApi,
+  LoginRequest,
+  refreshLoginApi,
+  User
+} from './api'
 
 export type AuthContextType = {
   user: User | null
   accessToken: string | null
   refreshToken: string | null
   isLoading: boolean
-  isLoggedOut: boolean
-  login: (credentials: LoginRequest) => Promise<void>
+  // isLoggedOut: boolean
+  loginMutation: UseMutationResult<
+    AuthenticationResponse,
+    unknown,
+    LoginRequest,
+    unknown
+  >
   // logout: () => Promise<void>
   // signup: (data: SignUpData) => Promise<void>
 }
@@ -27,36 +44,53 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     'refresh_token',
     null
   )
+  const queryClient = useQueryClient()
 
-  const { data, error, mutate } = useSWR(
-    refreshToken,
-    token => refreshLoginApi(token),
-    { refreshInterval: 390000 }
+  const { data, isLoading, error } = useQuery({
+    refetchInterval: 390000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryKey: [refreshToken],
+    queryFn: async ({ queryKey: [token] }) => {
+      if (token === null) {
+        return await Promise.resolve(null)
+      }
+      return await refreshLoginApi(token)
+    }
+  })
+
+  const loginMutation = useMutation(
+    (request: LoginRequest) => {
+      return loginApi(request)
+    },
+    {
+      onSuccess: (data, variables, context) => {
+        console.log({ data, variables, context })
+        setAccessToken(data.access_token)
+        setRefreshToken(data.refresh_token)
+        void queryClient.invalidateQueries([refreshToken])
+      },
+      onError: (error, variables, context) => {
+        console.log({ error, variables, context })
+        toast.error((error as Error).message)
+      }
+    }
   )
 
-  const login = async (request: LoginRequest) => {
-    const res = await loginApi(request)
-    mutate(res)
-    setAccessToken(res.access_token)
-    setRefreshToken(res.refresh_token)
-  }
-
-  // const { data } = useQuery({
-  //   refetchInterval: 390000,
-  //   queryKey: [refreshToken],
-  //   queryFn: async ({ queryKey: [token] }) => {
-  //     if (token === null) return null
-  //     return await refreshLoginApi(token)
-  //   }
-  // })
+  useEffect(() => {
+    if (error !== null) {
+      //* Toast message for when need to re-login
+      toast.error((error as Error).message)
+    }
+  }, [error])
 
   const value = {
     user: data?.user ?? null,
     accessToken,
     refreshToken,
-    isLoading: !data && !error && refreshToken !== null,
-    isLoggedOut: error && error.status === 403,
-    login
+    isLoading,
+    // isLoggedOut: Boolean(error && error.status! === 403),
+    loginMutation
     // logout,
     // signup
   }

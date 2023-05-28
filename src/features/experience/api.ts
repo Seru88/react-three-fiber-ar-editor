@@ -65,7 +65,6 @@ export function getExperienceApi(
       const exp = res.data.experiences[0]
       const tasks: Promise<AssetContentUrls>[] = []
       exp.asset_transform_info?.forEach(content => {
-        content.instance_id = generateInstanceID()
         tasks.push(
           getAssetContentUrl(content.uuid, undefined, exp.access_token)
         )

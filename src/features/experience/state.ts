@@ -19,10 +19,10 @@ export const currentContentAtom = focusAtom<
   void
 >(expSceneAtom, optic => optic.prop('current'))
 
-export const expQueryAtom = atom<GetExperienceQuery>({})
+export const experienceQueryAtom = atom<GetExperienceQuery>({})
 export const [, experienceAtom] = atomsWithQuery(get => ({
   refetchOnWindowFocus: false,
-  queryKey: ['experience', get(expQueryAtom)],
+  queryKey: ['experience', get(experienceQueryAtom)],
   queryFn: async ({ queryKey: [, query] }) => {
     return await getExperienceApi(query as GetExperienceQuery)
   }

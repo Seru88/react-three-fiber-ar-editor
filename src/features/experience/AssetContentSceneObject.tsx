@@ -4,15 +4,14 @@ import {
   Image,
   Resize,
   useSelect,
+  useTexture,
   useVideoTexture
 } from '@react-three/drei'
 import { useSetAtom } from 'jotai'
 import { FC, memo, useEffect } from 'react'
-import { DoubleSide, Material } from 'three'
+import { DoubleSide, MeshStandardMaterial } from 'three'
 
-import { AssetContent } from './api'
-import { SceneAssetContentState, currentContentAtom } from './state'
-// import useAssetContentUrls from './useAssetContentUrl'
+import { currentContentAtom, SceneAssetContentState } from './state'
 import { getSceneObjectParentByName } from './utils'
 
 type Props = {
@@ -33,15 +32,18 @@ const ModelContentSceneObject: FC<Props & { src: string }> = memo(
 
 const TextureContentSceneObject: FC<Props & { src: string }> = memo(
   ({ content, src }) => {
+    const texture = useTexture(src)
     return (
       <Center name={`${content.instanceID}-bound`} top>
         <Resize>
           <Image
+            scale={[texture.image.width, texture.image.height]}
             name={`${content.instanceID}`}
-            url={src}
+            texture={texture}
             ref={mesh => {
               if (mesh) {
-                ;(mesh.material as Material).side = DoubleSide
+                const material = mesh.material as MeshStandardMaterial
+                material.side = DoubleSide
               }
             }}
           />
@@ -53,12 +55,17 @@ const TextureContentSceneObject: FC<Props & { src: string }> = memo(
 
 const VideoContentSceneObject: FC<Props & { src: string }> = memo(
   ({ content, src }) => {
-    const texture = useVideoTexture(src, { muted: true, start: true })
-
+    const texture = useVideoTexture(src, {
+      muted: true,
+      start: true
+    })
     return (
       <Center name={`${content.instanceID}-bound`} top>
         <Resize>
-          <mesh name={`${content.instanceID}`} scale={[1.6, 0.9, 1]}>
+          <mesh
+            name={`${content.instanceID}`}
+            scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
+          >
             <planeGeometry />
             <meshBasicMaterial
               map={texture}
@@ -73,13 +80,6 @@ const VideoContentSceneObject: FC<Props & { src: string }> = memo(
 )
 
 const AssetContentSceneObject: FC<Props> = memo(({ content }) => {
-  // const { backup_url } = useAssetContentUrls(
-  //   content.uuid,
-  //   undefined,
-  //   access_token,
-  //   { revalidateOnFocus: false }
-  // )
-
   const setCurrentContentAtom = useSetAtom(currentContentAtom)
   const selected = useSelect().find(mesh => {
     if (mesh.name !== content.instanceID) {
@@ -92,17 +92,18 @@ const AssetContentSceneObject: FC<Props> = memo(({ content }) => {
     setCurrentContentAtom(selected ? content.instanceID : null)
   }, [selected, setCurrentContentAtom, content.instanceID])
 
-  if (content.type === '3d') {
-    return <ModelContentSceneObject content={content} src={content.src} />
+  switch (content.type) {
+    case 'audio':
+      return null
+    case '3d':
+      return <ModelContentSceneObject content={content} src={content.src} />
+    case 'image':
+      return <TextureContentSceneObject content={content} src={content.src} />
+    case 'video':
+      return <VideoContentSceneObject content={content} src={content.src} />
+    default:
+      return null
   }
-  if (content.type === 'image') {
-    return <TextureContentSceneObject content={content} src={content.src} />
-  }
-  if (content.type === 'video') {
-    return <VideoContentSceneObject content={content} src={content.src} />
-  }
-
-  return null
 })
 
 export default AssetContentSceneObject

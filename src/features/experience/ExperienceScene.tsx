@@ -9,34 +9,42 @@ import {
 import { Canvas } from '@react-three/fiber'
 import { useAtom } from 'jotai'
 import { useControls } from 'leva'
-import { FC, memo, useRef } from 'react'
+import { FC, Suspense, memo, useEffect, useRef } from 'react'
 
 import AssetContentSceneObject from './AssetContentSceneObject'
 import GizmoControls from './GizmoControls'
 import { sceneAssetContentsAtom } from './state'
+import { expSceneAtom } from './state'
 
 type Props = {
   mode: 'editor' | 'viewer'
 }
 
 const ExperienceScene: FC<Props> = memo(({ mode }) => {
-  const [sceneContents, setSceneContents] = useAtom(sceneAssetContentsAtom)
+  const [sceneContents] = useAtom(sceneAssetContentsAtom)
+  const [, setExpSceneState] = useAtom(expSceneAtom)
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
-  const { gridSize, ...gridConfig } = useControls({
-    gridSize: [15, 15],
-    cellSize: { value: 0.1, min: 0, max: 10, step: 0.1 },
-    cellThickness: { value: 0.8, min: 0, max: 5, step: 0.1 },
-    cellColor: '#6f6f6f',
-    sectionSize: { value: 1, min: 0, max: 10, step: 0.1 },
-    sectionThickness: { value: 1.1, min: 0, max: 5, step: 0.1 },
-    sectionColor: '#5afed4',
-    fadeDistance: { value: 25, min: 0, max: 100, step: 1 },
-    fadeStrength: { value: 1, min: 0, max: 1, step: 0.1 },
-    followCamera: false,
-    infiniteGrid: true
+  const { Transform /* ...gridConfig */ } = useControls({
+    Transform: {
+      options: { Translate: 'translate', Rotate: 'rotate', Scale: 'scale' }
+    }
+    // cellSize: { value: 0.1, min: 0, max: 10, step: 0.1 },
+    // cellThickness: { value: 0.8, min: 0, max: 5, step: 0.1 },
+    // cellColor: '#6f6f6f',
+    // sectionSize: { value: 1, min: 0, max: 10, step: 0.1 },
+    // sectionThickness: { value: 1.1, min: 0, max: 5, step: 0.1 },
+    // sectionColor: '#5afed4',
+    // fadeDistance: { value: 25, min: 0, max: 100, step: 1 },
+    // fadeStrength: { value: 1, min: 0, max: 1, step: 0.1 },
+    // followCamera: false,
+    // infiniteGrid: true
   })
+
+  useEffect(() => {
+    setExpSceneState(prev => ({ ...prev, gizmo: Transform as any }))
+  }, [Transform, setExpSceneState])
 
   return (
     <Canvas
@@ -45,7 +53,7 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
       camera={{ position: [5, 6, 6], fov: 25 }}
       style={{ height: '100%', width: '100%' }}
     >
-      <GizmoControls />
+      {mode === 'editor' && <GizmoControls />}
       <CameraControls makeDefault />
       <Environment preset='city' />
       <GizmoHelper alignment='bottom-right' margin={[80, 80]}>
@@ -57,13 +65,25 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
       <group position={[0, -0.5, 0]}>
         <Select>
           {sceneContents.map(content => (
-            <AssetContentSceneObject
-              key={content.instanceID}
-              content={content}
-            />
+            <Suspense key={content.instanceID} fallback={null}>
+              <AssetContentSceneObject content={content} />
+            </Suspense>
           ))}
         </Select>
-        <Grid position={[0, -0.01, 0]} args={gridSize} {...gridConfig} />
+        <Grid
+          position={[0, -0.01, 0]}
+          args={[15, 15]}
+          cellSize={0.1}
+          cellThickness={0.8}
+          cellColor='#6f6f6f'
+          sectionSize={1}
+          sectionThickness={1.1}
+          sectionColor='#5afed4'
+          fadeDistance={25}
+          fadeStrength={1}
+          followCamera={false}
+          infiniteGrid={true}
+        />
       </group>
     </Canvas>
   )

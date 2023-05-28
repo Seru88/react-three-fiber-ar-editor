@@ -5,6 +5,7 @@ import { queryClientAtom } from 'jotai-tanstack-query'
 import { Provider } from 'jotai/react'
 import { useHydrateAtoms } from 'jotai/react/utils'
 import { PropsWithChildren } from 'react'
+import { Toaster } from 'react-hot-toast'
 
 const queryClient = new QueryClient()
 
@@ -23,6 +24,7 @@ function App() {
           </AuthProvider>
         </HydrateAtoms>
       </Provider>
+      <Toaster />
     </QueryClientProvider>
   )
 }
