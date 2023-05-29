@@ -43,7 +43,10 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
   })
 
   useEffect(() => {
-    setExpSceneState(prev => ({ ...prev, gizmo: Transform as any }))
+    setExpSceneState(prev => ({
+      ...prev,
+      gizmo: Transform as 'translate' | 'rotate' | 'scale'
+    }))
   }, [Transform, setExpSceneState])
 
   return (

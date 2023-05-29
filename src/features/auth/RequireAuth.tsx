@@ -8,7 +8,11 @@ const RequireAuth: FC<PropsWithChildren> = ({ children }) => {
   const location = useLocation()
 
   if (isLoading) {
-    return <LoadingScreen />
+    return (
+      <div className='h-dynamic-screen w-full'>
+        <LoadingScreen />
+      </div>
+    )
   }
 
   if (user === null) {

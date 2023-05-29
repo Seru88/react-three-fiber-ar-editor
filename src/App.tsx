@@ -18,6 +18,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Provider>
+        {/* This Provider initialisation step is needed so that we reference the same
+        queryClient in both atomWithQuery and other parts of the app. Without this,
+        our useQueryClient() hook will return a different QueryClient object */}
         <HydrateAtoms>
           <AuthProvider>
             <Router />

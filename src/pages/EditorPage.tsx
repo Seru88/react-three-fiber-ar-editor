@@ -8,10 +8,9 @@ import {
 import { generateInstanceID } from 'features/experience/utils'
 import { useAtom } from 'jotai'
 import { FC, PropsWithChildren, useCallback, useEffect } from 'react'
-import { DropEvent, useDropzone, FileRejection } from 'react-dropzone'
-import { useSearchParams } from 'react-router-dom'
+import { FileRejection, useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
-import RequireAuth from 'features/auth/RequireAuth'
+import { useSearchParams } from 'react-router-dom'
 
 const MEGABYTE = 1000000
 
@@ -46,7 +45,7 @@ export default function EditorPage() {
   }, [experience, setSceneContents])
 
   const handleFileAccepted = useCallback(
-    (files: File[], event: DropEvent) => {
+    (files: File[]) => {
       const file = files[0]
       const src = URL.createObjectURL(file)
       const type = file.type.includes('image')
@@ -70,13 +69,10 @@ export default function EditorPage() {
     [setSceneContents]
   )
 
-  const handleFileRejected = useCallback(
-    (fileRejections: FileRejection[], event: DropEvent) => {
-      const rejection = fileRejections[0]
-      toast.error(rejection.errors[0].message)
-    },
-    []
-  )
+  const handleFileRejected = useCallback((fileRejections: FileRejection[]) => {
+    const rejection = fileRejections[0]
+    toast.error(rejection.errors[0].message)
+  }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -86,7 +82,7 @@ export default function EditorPage() {
       'video/webm': [],
       'model/gltf-binary': ['.glb', '.gltf']
     },
-    maxSize: 15 * MEGABYTE,
+    maxSize: 16 * MEGABYTE,
     noClick: true,
     noKeyboard: true,
     onDropAccepted: handleFileAccepted,
