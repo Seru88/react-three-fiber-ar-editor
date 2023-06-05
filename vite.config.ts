@@ -7,7 +7,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  assetsInclude: ['**/*.glb', '**/*.env'],
+  assetsInclude: ['**/*.hdr', '**/*.glb', '**/*.env'],
   plugins: [
     {
       ...eslintPlugin(),

@@ -1,6 +1,6 @@
 import { atom } from 'jotai'
 import { focusAtom } from 'jotai-optics'
-import { AssetContentType, GetExperienceQuery, getExperienceApi } from './api'
+import { AssetContentType, GetExperienceQuery, getExperience } from './api'
 import { atomsWithQuery } from 'jotai-tanstack-query'
 
 type ExperienceSceneState = {
@@ -24,16 +24,16 @@ export const [, experienceAtom] = atomsWithQuery(get => ({
   refetchOnWindowFocus: false,
   queryKey: ['experience', get(experienceQueryAtom)],
   queryFn: async ({ queryKey: [, query] }) => {
-    return await getExperienceApi(query as GetExperienceQuery)
+    return await getExperience(query as GetExperienceQuery)
   }
 }))
 
 export type SceneAssetContentState = {
   instanceID: string
-  position: number[]
-  quaternion: number[]
-  rotation: number[]
-  scale: number[]
+  position: [x: number, y: number, z: number]
+  quaternion: [x: number, y: number, z: number, w: number]
+  rotation: [x: number, y: number, z: number]
+  scale: [x: number, y: number, z: number]
   src: string
   type: AssetContentType
 }

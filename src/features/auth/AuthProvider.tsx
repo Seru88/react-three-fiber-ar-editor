@@ -10,9 +10,9 @@ import { useLocalStorage } from 'usehooks-ts'
 
 import {
   AuthenticationResponse,
-  loginApi,
+  login,
   LoginRequest,
-  refreshLoginApi,
+  refreshLogin,
   User
 } from './api'
 
@@ -55,13 +55,13 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       if (token === null) {
         return await Promise.resolve(null)
       }
-      return await refreshLoginApi(token)
+      return await refreshLogin(token)
     }
   })
 
   const loginMutation = useMutation(
     (request: LoginRequest) => {
-      return loginApi(request)
+      return login(request)
     },
     {
       onSuccess: (data, variables, context) => {

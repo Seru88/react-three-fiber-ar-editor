@@ -15,6 +15,7 @@ import AssetContentSceneObject from './AssetContentSceneObject'
 import GizmoControls from './GizmoControls'
 import { sceneAssetContentsAtom } from './state'
 import { expSceneAtom } from './state'
+import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
 
 type Props = {
   mode: 'editor' | 'viewer'
@@ -50,15 +51,10 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
   }, [Transform, setExpSceneState])
 
   return (
-    <Canvas
-      ref={canvasRef}
-      shadows
-      camera={{ position: [5, 6, 6], fov: 25 }}
-      style={{ height: '100%', width: '100%' }}
-    >
+    <Canvas ref={canvasRef} camera={{ position: [5, 6, 6], fov: 25 }}>
       {mode === 'editor' && <GizmoControls />}
       <CameraControls makeDefault />
-      <Environment preset='city' />
+      <Environment files={environment_src} />
       <GizmoHelper alignment='bottom-right' margin={[80, 80]}>
         <GizmoViewport
           axisColors={['#9d4b4b', '#2f7f4f', '#3b5b9d']}

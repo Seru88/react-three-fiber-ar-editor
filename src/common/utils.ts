@@ -5,6 +5,12 @@ export const getAuthorizationHeader = (token: string) => ({
   Authorization: `Bearer ${token}`
 })
 
+export const getFormData = (object: Record<string, unknown>) =>
+  Object.keys(object).reduce((formData, key) => {
+    formData.append(key, object[key] as string | Blob)
+    return formData
+  }, new FormData())
+
 export const isXrpBackendError = (
   reason: unknown
 ): reason is AxiosError<XrpServerResponse, Error> => {

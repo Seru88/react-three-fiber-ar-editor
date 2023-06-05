@@ -18,63 +18,57 @@ type Props = {
   content: SceneAssetContentState
 }
 
-const ModelContentSceneObject: FC<Props & { src: string }> = memo(
-  ({ content, src }) => {
+const ModelContentSceneObject: FC<Props> = memo(
+  ({ content: { src, instanceID } }) => {
     return (
-      <Center name={`${content.instanceID}-bound`} top>
-        <Resize>
-          <Gltf src={src} name={content.instanceID} />
-        </Resize>
-      </Center>
+      <Resize>
+        <Gltf src={src} name={instanceID} />
+      </Resize>
     )
   }
 )
 
-const TextureContentSceneObject: FC<Props & { src: string }> = memo(
-  ({ content, src }) => {
+const TextureContentSceneObject: FC<Props> = memo(
+  ({ content: { src, instanceID } }) => {
     const texture = useTexture(src)
     return (
-      <Center name={`${content.instanceID}-bound`} top>
-        <Resize>
-          <Image
-            scale={[texture.image.width, texture.image.height]}
-            name={`${content.instanceID}`}
-            texture={texture}
-            ref={mesh => {
-              if (mesh) {
-                const material = mesh.material as MeshStandardMaterial
-                material.side = DoubleSide
-              }
-            }}
-          />
-        </Resize>
-      </Center>
+      <Resize>
+        <Image
+          scale={[texture.image.width, texture.image.height]}
+          name={`${instanceID}`}
+          texture={texture}
+          ref={mesh => {
+            if (mesh) {
+              const material = mesh.material as MeshStandardMaterial
+              material.side = DoubleSide
+            }
+          }}
+        />
+      </Resize>
     )
   }
 )
 
-const VideoContentSceneObject: FC<Props & { src: string }> = memo(
-  ({ content, src }) => {
+const VideoContentSceneObject: FC<Props> = memo(
+  ({ content: { src, instanceID } }) => {
     const texture = useVideoTexture(src, {
       muted: true,
       start: true
     })
     return (
-      <Center name={`${content.instanceID}-bound`} top>
-        <Resize>
-          <mesh
-            name={`${content.instanceID}`}
-            scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
-          >
-            <planeGeometry />
-            <meshBasicMaterial
-              map={texture}
-              toneMapped={false}
-              side={DoubleSide}
-            />
-          </mesh>
-        </Resize>
-      </Center>
+      <Resize>
+        <mesh
+          name={`${instanceID}`}
+          scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
+        >
+          <planeGeometry />
+          <meshBasicMaterial
+            map={texture}
+            toneMapped={false}
+            side={DoubleSide}
+          />
+        </mesh>
+      </Resize>
     )
   }
 )
@@ -92,18 +86,20 @@ const AssetContentSceneObject: FC<Props> = memo(({ content }) => {
     setCurrentContentAtom(selected ? content.instanceID : null)
   }, [selected, setCurrentContentAtom, content.instanceID])
 
-  switch (content.type) {
-    case 'audio':
-      return null
-    case '3d':
-      return <ModelContentSceneObject content={content} src={content.src} />
-    case 'image':
-      return <TextureContentSceneObject content={content} src={content.src} />
-    case 'video':
-      return <VideoContentSceneObject content={content} src={content.src} />
-    default:
-      return null
-  }
+  return (
+    <Center name={`${content.instanceID}-bound`} top>
+      {content.type === 'audio' ? null : null}
+      {content.type === '3d' ? (
+        <ModelContentSceneObject content={content} />
+      ) : null}
+      {content.type === 'image' ? (
+        <TextureContentSceneObject content={content} />
+      ) : null}
+      {content.type === 'video' ? (
+        <VideoContentSceneObject content={content} />
+      ) : null}
+    </Center>
+  )
 })
 
 export default AssetContentSceneObject

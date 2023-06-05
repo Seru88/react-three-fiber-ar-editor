@@ -1,7 +1,10 @@
 import axios from 'axios'
 import { XrpServerResponse } from 'common/types'
-import { getAuthorizationHeader } from 'common/utils'
-import { generateInstanceID } from './utils'
+import {
+  getAuthorizationHeader,
+  getFormData,
+  throwNetworkError
+} from 'common/utils'
 
 /***************************************
  *              Experience             *
@@ -9,6 +12,7 @@ import { generateInstanceID } from './utils'
 export type Experience = {
   access_token: string | null
   asset_transform_info: AssetContent[] | null
+  asset_uuids?: string[]
   author_name: string
   contact_email: string
   count_likes: number
@@ -50,7 +54,12 @@ export type GetExperienceQuery = {
   short_code?: string
 }
 
-export function getExperienceApi(
+/**
+ * Retrieve an experience by its uuid or short_code. Must use one of them or else it will return null.
+ * @param params Query parameters.
+ * @returns
+ */
+export function getExperience(
   params: GetExperienceQuery
 ): Promise<Experience | null> {
   if (!params.uuid && !params.short_code) {
@@ -77,6 +86,45 @@ export function getExperienceApi(
     })
 }
 
+export function getExperiences(
+  params: GetExperienceQuery
+): Promise<Experience[]> {
+  return axios
+    .get('/api/v1/experiences', { params })
+    .then(res => res.data.experiences)
+    .catch(error => throwNetworkError(error))
+}
+
+export function createExperience(
+  req: Omit<
+    Partial<Experience>,
+    | 'access_token'
+    | 'count_likes'
+    | 'create'
+    | 'current_ip_has_liked'
+    | 'delete'
+    | 'id'
+    | 'marker'
+    | 'modified'
+    | 'should_watermark'
+    | 'showcase_ids'
+    | 'user_id'
+    | 'uuid'
+  > & { marker_uuid?: string }
+): Promise<Experience> {
+  return axios
+    .post('/api/v1/experience/create', req)
+    .then(res => res.data.experience)
+    .catch(error => throwNetworkError(error))
+}
+
+export function updateExperience(uuid: string): Promise<Experience> {
+  return axios
+    .put(`/api/v1/experience/${uuid}`)
+    .then(res => res.data.experience)
+    .catch(error => throwNetworkError(error))
+}
+
 /***************************************
  *             AssetContent            *
  ***************************************/
@@ -90,7 +138,6 @@ export type AssetContent = {
   id: number
   is_from_custom: boolean // default false
   is_preview_image: boolean // default false
-  instance_id: string
   link: string | null
   modified: string // datetime
   name: string | null
@@ -112,6 +159,69 @@ export type AssetContent = {
 }
 
 export type AssetContentType = '3d' | 'audio' | 'image' | 'video'
+
+export type AssetContentCreateRequest = {
+  content_type?: string
+  description?: string
+  file_ext?: string
+  file_size?: number
+  file?: File
+  link_to_file?: string
+  name?: string
+  price?: number
+  public?: boolean
+  text?: string
+  type?: AssetContentType
+}
+
+export function createAssetContent(
+  req: AssetContentCreateRequest
+): Promise<AssetContent> {
+  const formData = getFormData(req)
+  return axios
+    .post<{ asset: AssetContent } & XrpServerResponse>(
+      '/api/v1/asset/create',
+      formData
+    )
+    .then(res => res.data.asset)
+    .catch(error => throwNetworkError(error))
+}
+
+export function updateAssetContent(
+  uuid: string,
+  req: Pick<
+    AssetContentCreateRequest,
+    'description' | 'file_ext' | 'price' | 'public' | 'text' | 'type'
+  >
+): Promise<AssetContent> {
+  const formData = getFormData(req)
+  return axios
+    .put<{ asset: AssetContent } & XrpServerResponse>(
+      `/api/v1/asset/${uuid}`,
+      formData
+    )
+    .then(res => res.data.asset)
+    .catch(error => throwNetworkError(error))
+}
+
+/**
+ * Soft deletes an asset and returns it. This request also attempts* to delete relevant items from the asset_transform_info of related experiences.
+ * *experience.asset_transform_info is expected to be either:
+ *   - a list of objects each having a key "uuid"
+ *   - an object where asset_uuids are the keys
+ * @param uuid From asset create.
+ * @param force Default false, only relevant for "premium" assets which are associated with >1 users
+ * @returns
+ */
+export function deleteAssetContent(
+  uuid: string,
+  force?: boolean
+): Promise<AssetContent> {
+  return axios
+    .delete(`/api/v1/asset/${uuid}/delete`, { params: { force } })
+    .then(res => res.data.asset)
+    .catch(error => throwNetworkError(error))
+}
 
 export type AssetContentUrls = {
   backup_url: string | null

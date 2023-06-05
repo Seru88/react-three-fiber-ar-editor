@@ -55,7 +55,7 @@ export type AuthenticationResponse = {
 // export const signUpApi = (data: SignUpData) =>
 //   axios.post<AuthenticationResponse>('/api/signup', data).then(res => res.data)
 
-export const loginApi = (credentials: LoginRequest) =>
+export const login = (credentials: LoginRequest) =>
   axios
     .post<AuthenticationResponse>('/api/v2/login', credentials)
     .then(res => {
@@ -64,7 +64,7 @@ export const loginApi = (credentials: LoginRequest) =>
     })
     .catch(error => throwNetworkError(error))
 
-export const refreshLoginApi = (refresh_token: string) =>
+export const refreshLogin = (refresh_token: string) =>
   axios
     .post<Omit<AuthenticationResponse, 'refresh_token'>>(
       '/api/v1/login_refresh',
@@ -79,7 +79,7 @@ export const refreshLoginApi = (refresh_token: string) =>
     })
     .catch(error => throwNetworkError(error))
 
-export const verifyLoginApi = () =>
+export const verifyLogin = () =>
   axios
     .get<AuthenticationResponse>('/api/v2/verify_login', {
       params: { add_props: 'settings' }
