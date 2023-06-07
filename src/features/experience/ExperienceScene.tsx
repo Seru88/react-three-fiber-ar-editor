@@ -12,7 +12,7 @@ import { useControls } from 'leva'
 import { FC, Suspense, memo, useEffect, useRef } from 'react'
 
 import AssetContentSceneObject from './AssetContentSceneObject'
-import GizmoControls from './GizmoControls'
+import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransformControls'
 import { sceneAssetContentsAtom } from './state'
 import { expSceneAtom } from './state'
 import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
@@ -52,7 +52,7 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
 
   return (
     <Canvas ref={canvasRef} camera={{ position: [5, 6, 6], fov: 25 }}>
-      {mode === 'editor' && <GizmoControls />}
+      {mode === 'editor' && <SelectedSceneObjectTransformControls />}
       <CameraControls makeDefault />
       <Environment files={environment_src} />
       <GizmoHelper alignment='bottom-right' margin={[80, 80]}>

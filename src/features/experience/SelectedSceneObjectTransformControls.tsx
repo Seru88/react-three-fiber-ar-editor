@@ -6,7 +6,7 @@ import { FC } from 'react'
 import { expSceneAtom } from './state'
 import { getSceneObjectParentByName } from './utils'
 
-const GizmoControls: FC = () => {
+const SelectedSceneObjectTransformControls: FC = () => {
   const expScene = useAtomValue(expSceneAtom)
   const scene = useThree(state => state.scene)
 
@@ -23,4 +23,4 @@ const GizmoControls: FC = () => {
   return null
 }
 
-export default GizmoControls
+export default SelectedSceneObjectTransformControls

@@ -2,7 +2,7 @@ import axios from 'axios'
 import { XrpServerResponse } from 'common/types'
 import {
   getAuthorizationHeader,
-  getFormData,
+  getFormDataFromObject,
   throwNetworkError
 } from 'common/utils'
 
@@ -177,7 +177,7 @@ export type AssetContentCreateRequest = {
 export function createAssetContent(
   req: AssetContentCreateRequest
 ): Promise<AssetContent> {
-  const formData = getFormData(req)
+  const formData = getFormDataFromObject(req)
   return axios
     .post<{ asset: AssetContent } & XrpServerResponse>(
       '/api/v1/asset/create',
@@ -194,7 +194,7 @@ export function updateAssetContent(
     'description' | 'file_ext' | 'price' | 'public' | 'text' | 'type'
   >
 ): Promise<AssetContent> {
-  const formData = getFormData(req)
+  const formData = getFormDataFromObject(req)
   return axios
     .put<{ asset: AssetContent } & XrpServerResponse>(
       `/api/v1/asset/${uuid}`,
