@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className='relative flex h-screen flex-col justify-center overflow-hidden'>
+    <div className='relative flex h-screen flex-col justify-center overflow-hidden p-5'>
       <div className='card-bordered card m-auto w-full shadow-2xl lg:max-w-lg'>
         <div className='card-body'>
           <h1 className='text-center text-3xl font-semibold'>SpearXR Studio</h1>
