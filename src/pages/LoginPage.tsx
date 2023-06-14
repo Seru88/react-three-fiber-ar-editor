@@ -90,7 +90,7 @@ export default function LoginPage() {
           </a> */}
             <div>
               <button
-                className='btn-neutral btn-block btn'
+                className='btn-primary btn-block btn'
                 disabled={loginMutation.isLoading}
               >
                 Login

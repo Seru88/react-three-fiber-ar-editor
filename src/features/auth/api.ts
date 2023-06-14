@@ -55,17 +55,25 @@ export type AuthenticationResponse = {
 // export const signUpApi = (data: SignUpData) =>
 //   axios.post<AuthenticationResponse>('/api/signup', data).then(res => res.data)
 
-export const login = (credentials: LoginRequest) =>
-  axios
+export function login(credentials: LoginRequest) {
+  return axios
     .post<AuthenticationResponse>('/api/v2/login', credentials)
     .then(res => {
       axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
       return res.data
     })
     .catch(error => throwNetworkError(error))
+}
 
-export const refreshLogin = (refresh_token: string) =>
-  axios
+export function logout() {
+  return axios
+    .get<XrpServerResponse>('/api/v1/logout')
+    .then(() => null)
+    .catch(error => throwNetworkError(error))
+}
+
+export function refreshLogin(refresh_token: string) {
+  return axios
     .post<Omit<AuthenticationResponse, 'refresh_token'>>(
       '/api/v1/login_refresh',
       null,
@@ -78,9 +86,10 @@ export const refreshLogin = (refresh_token: string) =>
       return res.data
     })
     .catch(error => throwNetworkError(error))
+}
 
-export const verifyLogin = () =>
-  axios
+export function verifyLogin() {
+  return axios
     .get<AuthenticationResponse>('/api/v2/verify_login', {
       params: { add_props: 'settings' }
     })
@@ -89,3 +98,4 @@ export const verifyLogin = () =>
       return res.data
     })
     .catch(error => throwNetworkError(error))
+}

@@ -9,3 +9,5 @@ declare module '*.env' {
 declare module '*.hdr' {
   export default '' as string
 }
+
+// declare module 'daisyui/src/theming/themes'

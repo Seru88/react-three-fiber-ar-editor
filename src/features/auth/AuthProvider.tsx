@@ -12,6 +12,7 @@ import {
   AuthenticationResponse,
   login,
   LoginRequest,
+  logout,
   refreshLogin,
   User
 } from './api'
@@ -28,6 +29,7 @@ export type AuthContextType = {
     LoginRequest,
     unknown
   >
+  logoutMutation: UseMutationResult<null, unknown, void, unknown>
   // logout: () => Promise<void>
   // signup: (data: SignUpData) => Promise<void>
 }
@@ -59,22 +61,36 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
   })
 
-  const loginMutation = useMutation(
-    (request: LoginRequest) => {
-      return login(request)
+  const loginMutation = useMutation(login, {
+    onSuccess: data => {
+      setAccessToken(data.access_token)
+      setRefreshToken(data.refresh_token)
+      queryClient.invalidateQueries([refreshToken])
     },
-    {
-      onSuccess: (data, variables, context) => {
-        console.log({ data, variables, context })
-        setAccessToken(data.access_token)
-        setRefreshToken(data.refresh_token)
-        void queryClient.invalidateQueries([refreshToken])
-      },
-      onError: error => {
-        toast.error((error as Error).message)
-      }
+    onError: error => {
+      toast.error((error as Error).message)
     }
-  )
+  })
+
+  const logoutMutation = useMutation(logout, {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: [refreshToken] })
+      // const prev = queryClient.getQueryData([refreshToken])
+      queryClient.setQueryData([refreshToken], () => null)
+      // return prev
+    },
+    onSuccess: () => {
+      setAccessToken(null)
+      setRefreshToken(null)
+    },
+    onError: (error /* variables, context */) => {
+      toast.error((error as Error).message)
+      // queryClient.setQueryData(['todos'], context.previousTodos)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries([refreshToken])
+    }
+  })
 
   useEffect(() => {
     if (error !== null) {
@@ -89,7 +105,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     refreshToken,
     isLoading,
     // isLoggedOut: Boolean(error && error.status! === 403),
-    loginMutation
+    loginMutation,
+    logoutMutation
     // logout,
     // signup
   }
