@@ -37,6 +37,7 @@ const TextureContentSceneObject: FC<Props> = memo(
           scale={[texture.image.width, texture.image.height]}
           name={`${instanceID}`}
           texture={texture}
+          transparent
           ref={mesh => {
             if (mesh) {
               const material = mesh.material as MeshStandardMaterial

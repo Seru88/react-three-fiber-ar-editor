@@ -70,8 +70,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         setRefreshToken(data.refresh_token)
         void queryClient.invalidateQueries([refreshToken])
       },
-      onError: (error, variables, context) => {
-        console.log({ error, variables, context })
+      onError: error => {
         toast.error((error as Error).message)
       }
     }

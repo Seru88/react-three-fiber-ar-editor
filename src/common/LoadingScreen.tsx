@@ -4,7 +4,8 @@ export default function LoadingScreen() {
       className='flex h-full w-full flex-col items-center justify-center'
       // style={{ height: topOffset ? `calc(100vh - ${topOffset}px)` : '100vh' }}
     >
-      <div className='btn-xl loading btn-ghost no-animation btn-square btn text-primary' />
+      {/* <div className='btn-xl loading btn-ghost no-animation btn-square btn text-primary' /> */}
+      <span className='loading loading-infinity loading-lg text-primary' />
     </div>
   )
 }
