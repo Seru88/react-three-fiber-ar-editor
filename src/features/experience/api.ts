@@ -24,7 +24,7 @@ export type Experience = {
   is_from_custom: boolean
   marker: Marker | null
   marker_floor_to_center_height: number | null
-  meta: any
+  meta: unknown
   modified: string // datetime
   name: string | null
   product_id: number | null

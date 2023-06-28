@@ -21,6 +21,7 @@
     "jotai-tanstack-query": "^0.7.1",
     "leva": "^0.9.35",
     "react": "^18.2.0",
+    "react-colorful": "^5.6.1",
     "react-device-detect": "^2.2.3",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
