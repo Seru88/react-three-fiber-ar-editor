@@ -26,11 +26,11 @@ export type User = {
 }
 
 export type LoginRequest = {
-  domain: string
+  // domain: string
   password: string
-  email?: string
-  username?: string
-  email_or_username?: string
+  email: string
+  // username?: string
+  // email_or_username?: string
   remember?: boolean
   remember_duration?: number
 }
@@ -57,7 +57,7 @@ export type AuthenticationResponse = {
 
 export function login(credentials: LoginRequest) {
   return axios
-    .post<AuthenticationResponse>('/api/v2/login', credentials)
+    .post<AuthenticationResponse>('/api/v1/login', credentials)
     .then(res => {
       axios.defaults.headers.common.Authorization = `Bearer ${res.data.access_token}`
       return res.data

@@ -4,7 +4,7 @@ import { SubmitHandler, useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 type LoginFormData = {
-  email_or_username: string
+  email: string
   password: string
 }
 
@@ -22,7 +22,7 @@ export default function LoginPage() {
   } = useForm<LoginFormData>()
 
   const onSubmit: SubmitHandler<LoginFormData> = async data => {
-    await loginMutation.mutateAsync({ domain: 'postreality', ...data })
+    await loginMutation.mutateAsync(data)
     navigate('/', { state: { from: location.state?.from?.pathname || '/' } })
   }
 
@@ -42,14 +42,14 @@ export default function LoginPage() {
                 defaultValue=''
                 className={clsx(
                   'input-bordered input w-full',
-                  errors.email_or_username && 'input-error'
+                  errors.email && 'input-error'
                 )}
-                {...register('email_or_username', { required: 'Required' })}
+                {...register('email', { required: 'Required' })}
               />
-              {errors.email_or_username && (
+              {errors.email && (
                 <label className='label'>
                   <span className='label-text-alt text-error'>
-                    {errors.email_or_username.message}
+                    {errors.email.message}
                   </span>
                 </label>
               )}

@@ -29,7 +29,8 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'https://seb.xrplatform.io',
+        target: 'https://s.spearxr.com',
+        // target: 'https://seb.xrplatform.io',
         // target: 'https://peb.xrplatform.io',
         changeOrigin: true,
         secure: false
@@ -42,7 +43,8 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'https://seb.xrplatform.io',
+        // target: 'https://seb.xrplatform.io',
+        target: 'https://s.spearxr.com',
         changeOrigin: true,
         secure: false
         // ws: true,
