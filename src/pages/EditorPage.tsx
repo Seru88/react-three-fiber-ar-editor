@@ -1,11 +1,11 @@
 import clsx from 'clsx'
 import ExperienceScene from 'features/experience/ExperienceScene'
 import {
-  experienceAtom,
-  experienceQueryAtom,
-  sceneAssetContentsAtom,
-  SceneAssetContentState
-} from 'features/experience/state'
+  // experienceAtom,
+  // experienceQueryAtom,
+  sceneAssetContentsAtom
+  // SceneAssetContentState
+} from 'features/experience/atoms'
 import { generateInstanceID } from 'features/experience/utils'
 import { useAtom } from 'jotai'
 import {
@@ -18,40 +18,97 @@ import {
 } from 'react'
 import { FileRejection, useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
-import { useSearchParams } from 'react-router-dom'
-import { HexColorPicker } from 'react-colorful'
+import { HexColorPicker, HexColorInput } from 'react-colorful'
+import {
+  appAtom,
+  appQueryAtom,
+  appsAtom,
+  appsQueryAtom
+} from 'features/application/atoms'
+import LoadingScreen from 'common/LoadingScreen'
+import { useAppMutation } from 'features/application/hooks'
+import { editorAtom } from 'features/editor/atoms'
+import useAuth from 'features/auth/useAuth'
+import { App, CreateAppRequest } from 'features/application/api'
 
 const MEGABYTE = 1000000
-const exampleProjects = [
-  { title: 'Colgate Yearbook', type: 'AR (Native)' },
-  { title: 'Little Red Fasion', type: 'AR (Native)' },
-  { title: 'TMI Magazie', type: 'AR (Native)' },
-  { title: 'ES1', type: 'WebXR and MR' },
-  { title: 'Livers', type: 'WebXR and MR' },
-  { title: 'Emancipation', type: 'AR (Native)' }
-]
 
 export default function EditorPage() {
-  const [searchParams] = useSearchParams()
-  const [, setQuery] = useAtom(experienceQueryAtom)
-  const [experience] = useAtom(experienceAtom)
+  const { user } = useAuth()
+  // const [searchParams] = useSearchParams()
+
+  const [, setAppQuery] = useAtom(appQueryAtom)
+  const [app] = useAtom(appAtom)
+
+  const [, setAppsQuery] = useAtom(appsQueryAtom)
+  const [apps] = useAtom(appsAtom)
+
+  const [editor, setEditor] = useAtom(editorAtom)
+
+  // const [, setExpQuery] = useAtom(experienceQueryAtom)
+  // const [experience] = useAtom(experienceAtom)
   const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
-  const [appType, setAppType] = useState('')
-  const [appName, setAppName] = useState('')
   const [appDescription, setAppDescriptionn] = useState('')
-  const [appLandingBG, setAppLandingBG] = useState('')
-  const [appLogo, setAppLogo] = useState('')
-  const [appLandingImg, setAppLandingImg] = useState('')
-  const [appLandingText, setAppLandingText] = useState('')
-  const [buttonLabelText, setButtonLabelText] = useState('START')
-  const [buttonColor, setButtonColor] = useState('#aabbcc')
-  const [buttonLabelColor, setButtonLabelColor] = useState('#000000')
+  const [appLandingBGImgFile, setAppLandingBGImgFile] = useState<File>()
+  const [appLogoFile, setAppLogoFile] = useState<File>()
+  const [appLandingImgFile, setAppLandingImgFile] = useState<File>()
+  const [appInstructionImgFile, setAppInstructionImgFile] = useState<File>()
   const [editTabIndex, setEditTabIndex] = useState(0)
 
-  const handleAppTypeSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
-    ev.preventDefault()
-    setAppType(ev.target.value)
+  const { create, update } = useAppMutation()
+
+  const handleAppCreate = async () => {
+    await create.mutateAsync({
+      name: 'Untitled',
+      text: '',
+      button_background_color: '#aabbcc',
+      button_text: 'START',
+      button_text_color: '#000000'
+    })
   }
+
+  const handleAppLoad = (app: App) => () => {
+    setAppQuery(app.id)
+    // setEditor({ app, experiences: [] })
+  }
+
+  const handleSave = async () => {
+    if (editor.app) {
+      // const { id, created, modified, user_id, ...newUpdate } = editor.app
+      console.log({
+        appLandingBGImgFile,
+        appLogoFile,
+        appLandingImgFile,
+        appInstructionImgFile
+      })
+      const newUpdate: Partial<CreateAppRequest> = {
+        background_image: appLandingBGImgFile,
+        button_background_color: editor.app.button_background_color,
+        button_text_color: editor.app.button_text_color,
+        image: appLandingImgFile,
+        instructions_image: appInstructionImgFile,
+        logo_image: appLogoFile,
+        button_text: editor.app.button_text,
+        name: editor.app.name,
+        text: editor.app.text
+      }
+      await update.mutateAsync(newUpdate)
+    }
+  }
+
+  const handleEditorAppChange =
+    (key: keyof App) => (ev: ChangeEvent<HTMLInputElement> | string) => {
+      if (typeof ev === 'object') ev.preventDefault()
+      const value = typeof ev === 'object' ? ev.target.value : ev
+      setEditor(prev =>
+        prev.app
+          ? {
+              ...prev,
+              app: { ...prev.app, [key]: value }
+            }
+          : prev
+      )
+    }
 
   const handleFileAccepted = useCallback(
     (files: File[]) => {
@@ -98,548 +155,456 @@ export default function EditorPage() {
     onDropRejected: handleFileRejected
   })
 
-  useEffect(() => {
-    const uuid = searchParams.get('uuid') ?? undefined
-    const short_code = searchParams.get('short_code') ?? undefined
-    setQuery({ uuid, short_code })
-  }, [searchParams, setQuery])
+  // useEffect(() => {
+  //   const uuid = searchParams.get('uuid') ?? undefined
+  //   const short_code = searchParams.get('short_code') ?? undefined
+  //   setExpQuery({ uuid, short_code })
+  // }, [searchParams, setExpQuery])
 
   useEffect(() => {
-    if (experience.isSuccess) {
-      if (experience.data) {
-        setSceneContents(
-          experience.data.asset_transform_info?.map<SceneAssetContentState>(
-            content => ({
-              instanceID: generateInstanceID(),
-              position: [0, 0, 0],
-              quaternion: [0, 0, 0, 1],
-              rotation: [0, 0, 0],
-              scale: [1, 1, 1],
-              src: content.url,
-              type: content.type
-            })
-          ) ?? []
-        )
-      } else {
-        // if (!window.apps_modal.open) {
-        //   window.apps_modal.showModal()
-        // }
-      }
+    setAppsQuery({ user_id: user?.id })
+  }, [user, setAppsQuery])
+
+  // useEffect(() => {
+  //   if (experience.isSuccess) {
+  //     if (experience.data) {
+  //       setSceneContents(
+  //         experience.data.asset_transform_info?.map<SceneAssetContentState>(
+  //           content => ({
+  //             instanceID: generateInstanceID(),
+  //             position: [0, 0, 0],
+  //             quaternion: [0, 0, 0, 1],
+  //             rotation: [0, 0, 0],
+  //             scale: [1, 1, 1],
+  //             src: content.url,
+  //             type: content.type
+  //           })
+  //         ) ?? []
+  //       )
+  //     } else {
+  //       // if (!window.apps_modal.open) {
+  //       //   window.apps_modal.showModal()
+  //       // }
+  //     }
+  //   }
+  // }, [experience.isSuccess, experience.data, setSceneContents])
+
+  useEffect(() => {
+    if (app.isSuccess && app.data) {
+      setEditor({ app: app.data, experiences: [] })
     }
-  }, [experience.isSuccess, experience.data, setSceneContents])
+  }, [app.isSuccess, app.data, setEditor])
+
+  if (app.isInitialLoading) {
+    return <LoadingScreen />
+  }
 
   return (
-    <div className='relative h-full w-full bg-neutral' {...getRootProps()}>
-      <input {...getInputProps()} />
-      {isDragActive && experience.data ? (
-        <FileUploadBackdrop>Drag n' drop file here.</FileUploadBackdrop>
-      ) : null}
-
+    <div className='relative flex h-full w-full flex-col items-center justify-center bg-base-300'>
       <dialog id='apps_modal' className='modal'>
-        <form
-          method='dialog'
-          className='modal-box h-dynamic-screen w-11/12 max-w-none'
-        >
+        <form method='dialog' className='modal-box'>
           <button className='btn-ghost btn-sm btn-circle btn absolute right-2 top-2'>
             ✕
           </button>
-          <div className='carousel h-full w-full'>
-            <div id='apps' className='carousel-item w-full'>
-              <div className='w-full'>
-                <h3 className='mb-4 text-xl font-medium text-base-content'>
-                  Create a New App
-                </h3>
-                <div className='w-full space-x-2'>
-                  <select
-                    className='select-primary select w-full max-w-xs'
-                    value={appType}
-                    onChange={handleAppTypeSelect}
-                  >
-                    <option disabled value=''>
-                      Pick the type of app.
-                    </option>
-                    <option value='webxr_mr'>WebXR and MR</option>
-                    <option disabled value='ar_native'>
-                      AR (Native)
-                    </option>
-                  </select>
-                  <a
-                    className={clsx(
-                      'btn',
-                      appType === '' ? 'btn-disabled' : 'btn-primary'
-                    )}
-                    href='#app-customize'
-                  >
-                    Start
-                  </a>
-                </div>
-                <div className='divider' />
-                <h3 className='mb-4 text-xl font-medium text-base-content'>
-                  Your Apps
-                </h3>
-                <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
-                  {exampleProjects.map(p => (
-                    <div key={p.title} className='card-bordered card'>
-                      <div className='card-body flex flex-col justify-center'>
-                        <div className='text-lg font-bold'>{p.title}</div>
-                        <div>{p.type}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div id='app-customize' className='carousel-item w-full'>
-              <div className='flex w-full flex-col'>
-                <h3 className='mb-4 text-xl font-medium text-base-content'>
-                  Customize Your App
-                </h3>
-                <div className='grid w-full flex-grow grid-cols-2 gap-4'>
-                  <div className='space-y-4'>
-                    <input
-                      type='text'
-                      placeholder='App Name'
-                      className='input-bordered input w-full'
-                      value={appName}
-                      onChange={ev => {
-                        ev.preventDefault()
-                        setAppName(ev.target.value)
-                      }}
-                    />
-                    <textarea
-                      className='textarea-bordered textarea w-full'
-                      placeholder='App Description'
-                      value={appDescription}
-                      onChange={ev => {
-                        ev.preventDefault()
-                        setAppDescriptionn(ev.target.value)
-                      }}
-                    />
-                    <div className='tabs tabs-boxed mx-auto max-w-max'>
-                      <a className='tab tab-active'>Landing</a>
-                      <a className='tab'>Instructions</a>
-                      <a className='tab'>Misc.</a>
-                    </div>
-                    <div className='form-control w-full'>
-                      <label className='label'>
-                        <span className='label-text'>Pick a background</span>
-                      </label>
-                      <input
-                        type='file'
-                        className='file-input-bordered file-input w-full'
-                        accept='image/png, image/jpeg, image/jpg'
-                        onChange={ev => {
-                          ev.preventDefault()
-                          const file = ev.target.files?.item(0)
-                          if (file) {
-                            setAppLandingBG(URL.createObjectURL(file))
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className='form-control w-full'>
-                      <label className='label'>
-                        <span className='label-text'>Pick a logo</span>
-                      </label>
-                      <input
-                        type='file'
-                        className='file-input-bordered file-input w-full'
-                        accept='image/png, image/jpeg, image/jpg'
-                        onChange={ev => {
-                          ev.preventDefault()
-                          const file = ev.target.files?.item(0)
-                          if (file) {
-                            setAppLogo(URL.createObjectURL(file))
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className='form-control w-full'>
-                      <label className='label'>
-                        <span className='label-text'>Pick an image</span>
-                      </label>
-                      <input
-                        type='file'
-                        className='file-input-bordered file-input w-full'
-                        accept='image/png, image/jpeg, image/jpg'
-                        onChange={ev => {
-                          ev.preventDefault()
-                          const file = ev.target.files?.item(0)
-                          if (file) {
-                            setAppLandingImg(URL.createObjectURL(file))
-                          }
-                        }}
-                      />
-                    </div>
-                    <input
-                      type='text'
-                      placeholder='Landing Text'
-                      className='input-bordered input w-full'
-                      value={appLandingText}
-                      onChange={ev => {
-                        ev.preventDefault()
-                        setAppLandingText(ev.target.value)
-                      }}
-                    />
-                    <HexColorPicker
-                      color={buttonColor}
-                      onChange={setButtonColor}
-                    />
+          <h3 className='mb-4 text-xl font-medium text-base-content'>
+            Choose an App
+          </h3>
+          <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
+            {apps.data && apps.data.length > 0 ? (
+              <>
+                {apps.data?.map(a => (
+                  <div key={a.name} className='card-bordered card'>
+                    <button
+                      className='btn-ghost btn flex aspect-square h-auto flex-col items-center justify-center text-lg font-bold normal-case'
+                      onClick={handleAppLoad(a)}
+                    >
+                      {a.name}
+                    </button>
                   </div>
-
-                  <div className='flex h-full flex-col items-center justify-center'>
-                    <div className='mockup-phone'>
-                      <div className='camera'></div>
-                      <div className='display'>
-                        <div
-                          className='phone-2 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-8'
-                          style={{
-                            backgroundImage: appLandingBG
-                              ? `url(${appLandingBG})`
-                              : undefined
-                          }}
-                        >
-                          <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
-                            {appLogo ? (
-                              <img
-                                className='mx-auto max-h-full max-w-full rounded-lg'
-                                src={appLogo}
-                                alt='App Logo'
-                              />
-                            ) : (
-                              <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'>
-                                Logo
-                              </div>
-                            )}
-                          </div>
-                          <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
-                            {appLandingImg ? (
-                              <img
-                                className='mx-auto max-h-full max-w-full rounded-lg'
-                                src={appLandingImg}
-                                alt='App Landing Image'
-                              />
-                            ) : (
-                              <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'>
-                                Landing Image
-                              </div>
-                            )}
-                            {appLandingText ? (
-                              <div className='text-center'>
-                                {appLandingText}
-                              </div>
-                            ) : (
-                              <div className='mx-auto flex max-w-full flex-col items-center justify-center rounded-lg border'>
-                                Landing Text
-                              </div>
-                            )}
-                          </div>
-                          <div className='absolute bottom-14 mx-auto h-10 w-11/12 max-w-xs'>
-                            <div
-                              className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'
-                              style={{
-                                backgroundColor: buttonColor ?? undefined
-                              }}
-                            >
-                              Initiation Button
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                ))}
+              </>
+            ) : (
+              <div>No apps to load.</div>
+            )}
           </div>
         </form>
       </dialog>
 
-      <div className='flex h-full w-full'>
-        <div className='h-full w-80 bg-base-200 p-2'>
-          <div className='mb-2'>
-            <div className='form-control w-full'>
-              <label className='label'>
-                <span className='label-text'>App Name</span>
-              </label>
-              <input
-                type='text'
-                // placeholder='App Name'
-                className='input-bordered input w-full'
-                value={appName}
-                onChange={ev => {
-                  ev.preventDefault()
-                  setAppName(ev.target.value)
-                }}
-              />
-            </div>
-            <div className='form-control w-full'>
-              <label className='label'>
-                <span className='label-text'>App Description</span>
-              </label>
-              <textarea
-                className='textarea-bordered textarea w-full'
-                // placeholder='App Description'
-                value={appDescription}
-                onChange={ev => {
-                  ev.preventDefault()
-                  setAppDescriptionn(ev.target.value)
-                }}
-              />
-            </div>
-          </div>
-          <div className='tabs tabs-boxed'>
-            <button
-              className={clsx('tab', editTabIndex === 0 && 'tab-active')}
-              onClick={() => {
-                setEditTabIndex(0)
-              }}
-            >
-              Landing
-            </button>
-            <button
-              className={clsx('tab', editTabIndex === 1 && 'tab-active')}
-              onClick={() => {
-                setEditTabIndex(1)
-              }}
-            >
-              Instructions
-            </button>
-            <button
-              className={clsx('tab', editTabIndex === 2 && 'tab-active')}
-              onClick={() => {
-                setEditTabIndex(2)
-              }}
-            >
-              Experiences
-            </button>
-          </div>
-          {editTabIndex === 0 ? (
-            <div className='space-y-1'>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Background</span>
-                </label>
-                <input
-                  type='file'
-                  className='file-input-bordered file-input w-full'
-                  accept='image/png, image/jpeg, image/jpg'
-                  onChange={ev => {
-                    ev.preventDefault()
-                    const file = ev.target.files?.item(0)
-                    if (file) {
-                      setAppLandingBG(URL.createObjectURL(file))
-                    }
-                  }}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Logo</span>
-                </label>
-                <input
-                  type='file'
-                  className='file-input-bordered file-input w-full'
-                  accept='image/png, image/jpeg, image/jpg'
-                  onChange={ev => {
-                    ev.preventDefault()
-                    const file = ev.target.files?.item(0)
-                    if (file) {
-                      setAppLogo(URL.createObjectURL(file))
-                    }
-                  }}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Image</span>
-                </label>
-                <input
-                  type='file'
-                  className='file-input-bordered file-input w-full'
-                  accept='image/png, image/jpeg, image/jpg'
-                  onChange={ev => {
-                    ev.preventDefault()
-                    const file = ev.target.files?.item(0)
-                    if (file) {
-                      setAppLandingImg(URL.createObjectURL(file))
-                    }
-                  }}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Text</span>
-                </label>
-                <input
-                  type='text'
-                  placeholder='Landing Text'
-                  className='input-bordered input w-full'
-                  value={appLandingText}
-                  onChange={ev => {
-                    ev.preventDefault()
-                    setAppLandingText(ev.target.value)
-                  }}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Button Label</span>
-                </label>
-                <input
-                  type='text'
-                  placeholder='Button Label'
-                  className='input-bordered input w-full'
-                  value={buttonLabelText}
-                  onChange={ev => {
-                    ev.preventDefault()
-                    setButtonLabelText(ev.target.value)
-                  }}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Button Label Color</span>
-                </label>
-                <HexColorPicker
-                  style={{ width: '100%', height: 150 }}
-                  color={buttonLabelColor}
-                  onChange={setButtonLabelColor}
-                />
-              </div>
-              <div className='form-control w-full'>
-                <label className='label'>
-                  <span className='label-text'>Button Color</span>
-                </label>
-                <HexColorPicker
-                  style={{ width: '100%', height: 150 }}
-                  color={buttonColor}
-                  onChange={setButtonColor}
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-        <div
-          className='h-full text-neutral-content'
-          style={{ width: `calc(100% - 320px)` }}
-        >
-          <div
-            className={clsx(
-              'flex h-full flex-col items-center justify-center',
-              editTabIndex === 0 ? 'block' : 'hidden'
-            )}
+      {app.isSuccess && app.data === null ? (
+        <div className='flex max-w-xs flex-col items-stretch justify-center space-y-2'>
+          <button
+            id='create-app-btn'
+            className='btn-primary btn'
+            onClick={handleAppCreate}
           >
-            <div className='mockup-phone'>
-              <div className='camera'></div>
-              <div className='display'>
-                <div
-                  className='phone-2 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-8'
-                  style={{
-                    backgroundImage: appLandingBG
-                      ? `url(${appLandingBG})`
-                      : undefined
+            Creat a new app
+          </button>
+          <button
+            id='load-app-btn'
+            className='btn-primary btn'
+            onClick={ev => {
+              ev.preventDefault()
+              window.apps_modal.showModal()
+            }}
+          >
+            Load an app
+          </button>
+        </div>
+      ) : (
+        <div className='flex h-full w-full'>
+          <div className='h-full w-96 bg-base-200 p-2'>
+            <div className='mb-2'>
+              <div className='form-control w-full'>
+                <label className='label'>
+                  <span className='label-text'>App Name</span>
+                </label>
+                <input
+                  type='text'
+                  placeholder='App Name'
+                  className='input-bordered input w-full'
+                  value={editor.app?.name ?? ''}
+                  onChange={handleEditorAppChange('name')}
+                />
+              </div>
+              <div className='form-control w-full'>
+                <label className='label'>
+                  <span className='label-text'>App Description</span>
+                </label>
+                <textarea
+                  className='textarea-bordered textarea w-full'
+                  placeholder='App Description'
+                  value={appDescription}
+                  onChange={ev => {
+                    ev.preventDefault()
+                    setAppDescriptionn(ev.target.value)
                   }}
-                >
-                  <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
-                    {appLogo ? (
-                      <img
-                        className='mx-auto max-h-full max-w-full rounded-lg'
-                        src={appLogo}
-                        alt='App Logo'
-                      />
-                    ) : (
-                      <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'>
-                        Logo
+                />
+              </div>
+            </div>
+            <div className='tabs tabs-boxed justify-center'>
+              <button
+                className={clsx('tab', editTabIndex === 0 && 'tab-active')}
+                onClick={() => {
+                  setEditTabIndex(0)
+                }}
+              >
+                Landing
+              </button>
+              <button
+                className={clsx('tab', editTabIndex === 1 && 'tab-active')}
+                onClick={() => {
+                  setEditTabIndex(1)
+                }}
+              >
+                Instructions
+              </button>
+              <button
+                className={clsx('tab', editTabIndex === 2 && 'tab-active')}
+                onClick={() => {
+                  setEditTabIndex(2)
+                }}
+              >
+                Experiences
+              </button>
+            </div>
+            <div className='divider m-0' />
+            {editTabIndex === 0 ? (
+              <div id='landing-sidebar' className='space-y-1'>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Background</span>
+                  </label>
+                  <input
+                    type='file'
+                    className='file-input-bordered file-input w-full'
+                    accept='image/png, image/jpeg, image/jpg'
+                    onChange={ev => {
+                      ev.preventDefault()
+                      const file = ev.target.files?.item(0)
+                      if (file) {
+                        URL.revokeObjectURL(
+                          editor.app?.background_image_url ?? ''
+                        )
+                        handleEditorAppChange('background_image_url')(
+                          URL.createObjectURL(file)
+                        )
+                        setAppLandingBGImgFile(file)
+                      }
+                    }}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Logo</span>
+                  </label>
+                  <input
+                    type='file'
+                    className='file-input-bordered file-input w-full'
+                    accept='image/png, image/jpeg, image/jpg'
+                    onChange={ev => {
+                      ev.preventDefault()
+                      const file = ev.target.files?.item(0)
+                      if (file) {
+                        URL.revokeObjectURL(editor.app?.logo_image_url ?? '')
+                        handleEditorAppChange('logo_image_url')(
+                          URL.createObjectURL(file)
+                        )
+                        setAppLogoFile(file)
+                      }
+                    }}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Image</span>
+                  </label>
+                  <input
+                    type='file'
+                    className='file-input-bordered file-input w-full'
+                    accept='image/png, image/jpeg, image/jpg'
+                    onChange={ev => {
+                      ev.preventDefault()
+                      const file = ev.target.files?.item(0)
+                      if (file) {
+                        URL.revokeObjectURL(editor.app?.image_url ?? '')
+                        handleEditorAppChange('image_url')(
+                          URL.createObjectURL(file)
+                        )
+                        setAppLandingImgFile(file)
+                      }
+                    }}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Text</span>
+                  </label>
+                  <input
+                    type='text'
+                    placeholder='Landing Text'
+                    className='input-bordered input w-full'
+                    value={editor.app?.text ?? ''}
+                    onChange={handleEditorAppChange('text')}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Button Label</span>
+                  </label>
+                  <input
+                    type='text'
+                    placeholder='Button Label'
+                    className='input-bordered input w-full'
+                    value={editor.app?.button_text ?? 'Start'}
+                    onChange={handleEditorAppChange('button_text')}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Button Label Color</span>
+                  </label>
+                  <HexColorPicker
+                    className='color-picker'
+                    style={{ width: '100%', height: 150 }}
+                    color={editor.app?.button_text_color ?? ''}
+                    onChange={handleEditorAppChange('button_text_color')}
+                  />
+                  <HexColorInput
+                    className='input-bordered input input-sm mt-1 w-full'
+                    color={editor.app?.button_text_color ?? ''}
+                    onChange={handleEditorAppChange('button_text_color')}
+                  />
+                </div>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Button Color</span>
+                  </label>
+                  <HexColorPicker
+                    className='color-picker'
+                    style={{ width: '100%', height: 150 }}
+                    color={editor.app?.button_background_color ?? ''}
+                    onChange={handleEditorAppChange('button_background_color')}
+                  />
+                  <HexColorInput
+                    className='input-bordered input input-sm mt-1 w-full'
+                    color={editor.app?.button_background_color ?? ''}
+                    onChange={handleEditorAppChange('button_background_color')}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {editTabIndex === 1 ? (
+              <div id='instruction-sidebar' className='space-y-1'>
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Instruction Image</span>
+                  </label>
+                  <input
+                    type='file'
+                    className='file-input-bordered file-input w-full'
+                    accept='image/png, image/jpeg, image/jpg'
+                    onChange={ev => {
+                      ev.preventDefault()
+                      const file = ev.target.files?.item(0)
+                      if (file) {
+                        URL.revokeObjectURL(
+                          editor.app?.instructions_image_url ?? ''
+                        )
+                        handleEditorAppChange('instructions_image_url')(
+                          URL.createObjectURL(file)
+                        )
+                        setAppInstructionImgFile(file)
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {editTabIndex === 2 ? (
+              <div id='experience-sidebar' className='space-y-1'>
+                <div className='form-control w-full'>
+                  <button className='btn-primary btn'>Add</button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className='relative h-full flex-grow text-base-content'>
+            <button
+              className='btn-primary btn-sm btn absolute left-2 top-2'
+              onClick={handleSave}
+            >
+              Save
+            </button>
+            <div
+              id='landing-view'
+              className={clsx(
+                'flex h-full flex-col items-center justify-center',
+                editTabIndex === 0 ? 'block' : 'hidden'
+              )}
+            >
+              <div className='mockup-phone'>
+                <div className='camera'></div>
+                <div className='display'>
+                  <div
+                    className='phone-2 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
+                    style={{
+                      backgroundImage: editor.app?.background_image_url
+                        ? `url(${editor.app.background_image_url})`
+                        : undefined
+                    }}
+                  >
+                    <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
+                      {editor.app?.logo_image_url ? (
+                        <img
+                          className='mx-auto max-h-full max-w-full rounded-lg'
+                          src={editor.app.logo_image_url}
+                          alt='App Logo'
+                        />
+                      ) : (
+                        <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border border-base-content'>
+                          Logo
+                        </div>
+                      )}
+                    </div>
+                    <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
+                      {editor.app?.image_url ? (
+                        <img
+                          className='mx-auto max-h-full max-w-full rounded-lg'
+                          src={editor.app.image_url}
+                          alt='App Landing Image'
+                        />
+                      ) : (
+                        <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border border-base-content'>
+                          Landing Image
+                        </div>
+                      )}
+                      {editor.app?.text ? (
+                        <div className='text-center'>{editor.app.text}</div>
+                      ) : (
+                        <div className='mx-auto flex max-w-full flex-col items-center justify-center rounded-lg border border-base-content'>
+                          Landing Text
+                        </div>
+                      )}
+                    </div>
+                    <div className='absolute bottom-14 mx-auto h-10 w-11/12 max-w-xs'>
+                      <div
+                        className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg'
+                        style={{
+                          backgroundColor: editor.app?.button_background_color,
+                          color: editor.app?.button_text_color
+                        }}
+                      >
+                        {editor.app?.button_text}
                       </div>
-                    )}
-                  </div>
-                  <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
-                    {appLandingImg ? (
-                      <img
-                        className='mx-auto max-h-full max-w-full rounded-lg'
-                        src={appLandingImg}
-                        alt='App Landing Image'
-                      />
-                    ) : (
-                      <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'>
-                        Landing Image
-                      </div>
-                    )}
-                    {appLandingText ? (
-                      <div className='text-center'>{appLandingText}</div>
-                    ) : (
-                      <div className='mx-auto flex max-w-full flex-col items-center justify-center rounded-lg border'>
-                        Landing Text
-                      </div>
-                    )}
-                  </div>
-                  <div className='absolute bottom-14 mx-auto h-10 w-11/12 max-w-xs'>
-                    <div
-                      className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border'
-                      style={{
-                        backgroundColor: buttonColor ?? undefined,
-                        color: buttonLabelColor
-                      }}
-                    >
-                      {buttonLabelText}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div
-            className={clsx(
-              'h-full w-full',
-              editTabIndex === 1 ? 'block' : 'hidden'
-            )}
-          >
-            Instructions
-          </div>
-          <div
-            className={clsx(
-              'h-full w-full',
-              editTabIndex === 2 ? 'block' : 'hidden'
-            )}
-          >
-            <ExperienceScene mode='editor' />
+            <div
+              id='instruction-view'
+              className={clsx(
+                'flex h-full flex-col items-center justify-center',
+                editTabIndex === 1 ? 'block' : 'hidden'
+              )}
+            >
+              <div className='mockup-phone'>
+                <div className='camera'></div>
+                <div className='display'>
+                  <div
+                    className='phone-2 artboard artboard-demo relative space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
+                    style={{
+                      backgroundImage: editor.app?.background_image_url
+                        ? `url(${editor.app.background_image_url})`
+                        : undefined
+                    }}
+                  >
+                    <div className='relative flex h-full w-11/12 max-w-xs flex-col items-center justify-center rounded-lg border border-base-content bg-base-100'>
+                      <div className='absolute left-1/2 top-2 -translate-x-1/2 p-4 text-center text-lg font-medium'>
+                        Instructions
+                      </div>
+                      <div className='aspect-square h-auto w-11/12 max-w-xs'>
+                        {editor.app?.instructions_image_url ? (
+                          <img
+                            className='mx-auto max-h-full max-w-full rounded-lg'
+                            src={editor.app?.instructions_image_url}
+                            alt='Instruction Image'
+                          />
+                        ) : (
+                          <div className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg border border-base-content'>
+                            Instruction Image
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              id='experience-view'
+              className={clsx(
+                'fixed h-full w-full',
+                editTabIndex === 2 ? 'block' : 'hidden'
+              )}
+              {...getRootProps()}
+            >
+              <input {...getInputProps()} />
+              {isDragActive ? (
+                <FileUploadBackdrop>Drag n' drop file here.</FileUploadBackdrop>
+              ) : null}
+              <ExperienceScene mode='editor' />
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* <div className='drawer drawer-open'>
-        <input id='editor-drawer' type='checkbox' className='drawer-toggle' />
-        <div
-          className='drawer-content'
-          style={{ height: 'calc(100dvh - 64px)' }}
-        >
-          <ExperienceScene mode='editor' />
-        </div>
-        <div className='drawer-side' style={{ height: 'calc(100dvh - 64px)' }}>
-          <label htmlFor='editor-drawer' className='drawer-overlay'></label>
-          <ul className='menu h-full w-80 bg-base-200 p-4 text-base-content'>
-            <li>
-              <a>Sidebar Item 1</a>
-            </li>
-            <li>
-              <a>Sidebar Item 2</a>
-            </li>
-          </ul>
-        </div>
-      </div> */}
-
-      {/* <div className='card absolute left-2 top-2 bg-base-100 p-2'>
-        <h3 className='mb-2 text-center text-lg font-medium'>Experiences</h3>
-        <button className='btn-primary btn-sm btn'>Add Experience</button>
-      </div> */}
+      )}
     </div>
   )
 }
 
 const FileUploadBackdrop: FC<PropsWithChildren> = ({ children }) => {
   return (
-    <div className='absolute z-50 flex h-full w-full flex-col items-center justify-center bg-teal-200 bg-opacity-25 text-white'>
+    <div className='absolute z-50 flex h-full w-full flex-col items-center justify-center bg-neutral bg-opacity-50 text-neutral-content'>
       {children}
     </div>
   )

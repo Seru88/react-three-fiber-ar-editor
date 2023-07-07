@@ -7,6 +7,7 @@ export const getAuthorizationHeader = (token: string) => ({
 
 export const getFormDataFromObject = (object: Record<string, unknown>) =>
   Object.keys(object).reduce((formData, key) => {
+    if (object[key] === undefined) return formData
     formData.append(key, object[key] as string | Blob)
     return formData
   }, new FormData())

@@ -13,7 +13,7 @@ import { FC, Suspense, memo, useRef } from 'react'
 
 import AssetContentSceneObject from './AssetContentSceneObject'
 import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransformControls'
-import { sceneAssetContentsAtom } from './state'
+import { sceneAssetContentsAtom } from './atoms'
 // import { expSceneAtom } from './state'
 import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
 import { hslStringToValues, hslToHex } from './utils'
@@ -83,7 +83,7 @@ const ExperienceScene: FC<Props> = memo(({ mode }) => {
               getComputedStyle(
                 // @ts-expect-error Exists
                 document.querySelector(':root')
-              ).getPropertyValue('--s')
+              ).getPropertyValue('--a')
             )
           )}
           fadeDistance={25}

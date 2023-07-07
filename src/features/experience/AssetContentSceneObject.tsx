@@ -11,7 +11,7 @@ import { useSetAtom } from 'jotai'
 import { FC, memo, useEffect } from 'react'
 import { DoubleSide, MeshStandardMaterial } from 'three'
 
-import { currentContentAtom, SceneAssetContentState } from './state'
+import { currentContentAtom, SceneAssetContentState } from './atoms'
 import { getSceneObjectParentByName } from './utils'
 
 type Props = {

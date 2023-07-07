@@ -49,7 +49,7 @@ export type Experience = {
   uuid: string
 }
 
-export type GetExperienceQuery = {
+export type GetExperiencesQuery = {
   uuid?: string
   short_code?: string
 }
@@ -60,7 +60,7 @@ export type GetExperienceQuery = {
  * @returns
  */
 export function getExperience(
-  params: GetExperienceQuery
+  params: GetExperiencesQuery
 ): Promise<Experience | null> {
   if (!params.uuid && !params.short_code) {
     return Promise.resolve(null)
@@ -87,7 +87,7 @@ export function getExperience(
 }
 
 export function getExperiences(
-  params: GetExperienceQuery
+  params: GetExperiencesQuery
 ): Promise<Experience[]> {
   return axios
     .get('/api/v1/experiences', { params })

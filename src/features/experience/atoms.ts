@@ -1,6 +1,6 @@
 import { atom } from 'jotai'
 import { focusAtom } from 'jotai-optics'
-import { AssetContentType, GetExperienceQuery, getExperience } from './api'
+import { AssetContentType, GetExperiencesQuery, getExperience } from './api'
 import { atomsWithQuery } from 'jotai-tanstack-query'
 
 export type ExperienceSceneState = {
@@ -19,13 +19,13 @@ export const currentContentAtom = focusAtom<
   void
 >(expSceneAtom, optic => optic.prop('current'))
 
-export const experienceQueryAtom = atom<GetExperienceQuery>({})
+export const experienceQueryAtom = atom<GetExperiencesQuery>({})
 
 export const [, experienceAtom] = atomsWithQuery(get => ({
   refetchOnWindowFocus: false,
   queryKey: ['experience', get(experienceQueryAtom)],
   queryFn: async ({ queryKey: [, query] }) => {
-    return await getExperience(query as GetExperienceQuery)
+    return await getExperience(query as GetExperiencesQuery)
   }
 }))
 

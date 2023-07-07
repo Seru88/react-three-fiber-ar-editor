@@ -55,7 +55,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     queryKey: [refreshToken],
     queryFn: async ({ queryKey: [token] }) => {
       if (token === null) {
-        return await Promise.resolve(null)
+        return null
       }
       return await refreshLogin(token)
     }

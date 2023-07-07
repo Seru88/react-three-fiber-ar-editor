@@ -3,7 +3,7 @@ import { useThree } from '@react-three/fiber'
 import { useAtomValue } from 'jotai'
 import { FC } from 'react'
 
-import { expSceneAtom } from './state'
+import { expSceneAtom } from './atoms'
 import { getSceneObjectParentByName } from './utils'
 
 const SelectedSceneObjectTransformControls: FC = () => {

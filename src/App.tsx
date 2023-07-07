@@ -4,8 +4,9 @@ import AuthProvider from 'features/auth/AuthProvider'
 import { queryClientAtom } from 'jotai-tanstack-query'
 import { Provider } from 'jotai/react'
 import { useHydrateAtoms } from 'jotai/react/utils'
-import { PropsWithChildren } from 'react'
+import { PropsWithChildren, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
+import { themeChange } from 'theme-change'
 
 const queryClient = new QueryClient()
 
@@ -15,6 +16,11 @@ const HydrateAtoms = ({ children }: PropsWithChildren) => {
 }
 
 function App() {
+  useEffect(() => {
+    themeChange(false)
+    // 👆 false parameter is required for react project
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <Provider>
