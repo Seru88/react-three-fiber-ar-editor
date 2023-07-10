@@ -1,9 +1,11 @@
 import clsx from 'clsx'
 import ExperienceScene from 'features/experience/ExperienceScene'
 import {
-  // experienceAtom,
+  experiencesAtom,
   // experienceQueryAtom,
-  sceneAssetContentsAtom
+  sceneAssetContentsAtom,
+  experiencesQueryAtom
+  // experienceAtom
   // SceneAssetContentState
 } from 'features/experience/atoms'
 import { generateInstanceID } from 'features/experience/utils'
@@ -30,35 +32,48 @@ import { useAppMutation } from 'features/application/hooks'
 import { editorAtom } from 'features/editor/atoms'
 import useAuth from 'features/auth/useAuth'
 import { App, CreateAppRequest } from 'features/application/api'
+import { useExperienceMutation } from 'features/experience/hooks'
+import { Experience } from 'features/experience/api'
 
 const MEGABYTE = 1000000
 
 export default function EditorPage() {
   const { user } = useAuth()
-  // const [searchParams] = useSearchParams()
+  const { create: createApp, update: updateApp } = useAppMutation()
+  const { create: createExp, update: updateExp } = useExperienceMutation()
 
-  const [, setAppQuery] = useAtom(appQueryAtom)
-  const [app] = useAtom(appAtom)
-
+  // List of Apps
   const [, setAppsQuery] = useAtom(appsQueryAtom)
   const [apps] = useAtom(appsAtom)
 
+  // Current App
+  const [, setAppQuery] = useAtom(appQueryAtom)
+  const [currApp] = useAtom(appAtom)
+
+  // List of Experiences for Current App
+  const [, setExpsQuery] = useAtom(experiencesQueryAtom)
+  const [exps] = useAtom(experiencesAtom)
+
+  // Current Experience of Current App
+  // const [, setExpQuery] = useAtom(experienceQueryAtom)
+  // const [currExp] = useAtom(experienceAtom)
+
+  // Editor State
   const [editor, setEditor] = useAtom(editorAtom)
 
-  // const [, setExpQuery] = useAtom(experienceQueryAtom)
-  // const [experience] = useAtom(experienceAtom)
-  const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
+  // UI
+  const [editTabIndex, setEditTabIndex] = useState(0)
   const [appDescription, setAppDescriptionn] = useState('')
   const [appLandingBGImgFile, setAppLandingBGImgFile] = useState<File>()
   const [appLogoFile, setAppLogoFile] = useState<File>()
   const [appLandingImgFile, setAppLandingImgFile] = useState<File>()
   const [appInstructionImgFile, setAppInstructionImgFile] = useState<File>()
-  const [editTabIndex, setEditTabIndex] = useState(0)
+  const [currExpIndex, setCurrExpIndex] = useState<number>(0)
 
-  const { create, update } = useAppMutation()
+  const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
 
   const handleAppCreate = async () => {
-    await create.mutateAsync({
+    await createApp.mutateAsync({
       name: 'Untitled',
       text: '',
       button_background_color: '#aabbcc',
@@ -69,31 +84,7 @@ export default function EditorPage() {
 
   const handleAppLoad = (app: App) => () => {
     setAppQuery(app.id)
-    // setEditor({ app, experiences: [] })
-  }
-
-  const handleSave = async () => {
-    if (editor.app) {
-      // const { id, created, modified, user_id, ...newUpdate } = editor.app
-      console.log({
-        appLandingBGImgFile,
-        appLogoFile,
-        appLandingImgFile,
-        appInstructionImgFile
-      })
-      const newUpdate: Partial<CreateAppRequest> = {
-        background_image: appLandingBGImgFile,
-        button_background_color: editor.app.button_background_color,
-        button_text_color: editor.app.button_text_color,
-        image: appLandingImgFile,
-        instructions_image: appInstructionImgFile,
-        logo_image: appLogoFile,
-        button_text: editor.app.button_text,
-        name: editor.app.name,
-        text: editor.app.text
-      }
-      await update.mutateAsync(newUpdate)
-    }
+    setExpsQuery({ app_id: app.id })
   }
 
   const handleEditorAppChange =
@@ -109,6 +100,77 @@ export default function EditorPage() {
           : prev
       )
     }
+
+  const handleExpSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
+    ev.preventDefault()
+    const index = parseInt(ev.target.value)
+    setCurrExpIndex(index)
+  }
+
+  const handleExpCreate = async () => {
+    if (currApp.data) {
+      await createExp.mutateAsync({
+        name: 'Untitled',
+        app_id: currApp.data?.id
+      })
+    } else {
+      throw new Error('No app loaded to associate.')
+    }
+  }
+
+  const handleEditorExpChange =
+    (index: number, key: keyof Experience) =>
+    (ev: ChangeEvent<HTMLInputElement> | string) => {
+      if (typeof ev === 'object') ev.preventDefault()
+      const value = typeof ev === 'object' ? ev.target.value : ev
+      setEditor(prev => {
+        const update = { ...prev.experiences[index], [key]: value }
+        return {
+          ...prev,
+          experiences: [
+            ...prev.experiences.slice(0, index),
+            update,
+            ...prev.experiences.slice(index + 1)
+          ]
+        }
+      })
+    }
+
+  const handleSave = async () => {
+    try {
+      if (editor.app) {
+        const appUpdate: Partial<CreateAppRequest> = {
+          background_image: appLandingBGImgFile,
+          button_background_color: editor.app.button_background_color,
+          button_text_color: editor.app.button_text_color,
+          image: appLandingImgFile,
+          instructions_image: appInstructionImgFile,
+          logo_image: appLogoFile,
+          button_text: editor.app.button_text,
+          name: editor.app.name,
+          text: editor.app.text
+        }
+        await updateApp.mutateAsync(appUpdate)
+      }
+      if (editor.experiences.length > 0) {
+        const tasks = editor.experiences.map(exp =>
+          updateExp.mutateAsync({
+            id: editor.experiences[currExpIndex].id,
+            request: {
+              name: exp.name,
+              // marker_image: undefined,
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              app_id: editor.app!.id
+              // asset_uuid: undefined
+            }
+          })
+        )
+        await Promise.all(tasks)
+      }
+    } catch (error) {
+      toast.error((error as Error).message)
+    }
+  }
 
   const handleFileAccepted = useCallback(
     (files: File[]) => {
@@ -155,47 +217,27 @@ export default function EditorPage() {
     onDropRejected: handleFileRejected
   })
 
-  // useEffect(() => {
-  //   const uuid = searchParams.get('uuid') ?? undefined
-  //   const short_code = searchParams.get('short_code') ?? undefined
-  //   setExpQuery({ uuid, short_code })
-  // }, [searchParams, setExpQuery])
-
   useEffect(() => {
     setAppsQuery({ user_id: user?.id })
   }, [user, setAppsQuery])
 
-  // useEffect(() => {
-  //   if (experience.isSuccess) {
-  //     if (experience.data) {
-  //       setSceneContents(
-  //         experience.data.asset_transform_info?.map<SceneAssetContentState>(
-  //           content => ({
-  //             instanceID: generateInstanceID(),
-  //             position: [0, 0, 0],
-  //             quaternion: [0, 0, 0, 1],
-  //             rotation: [0, 0, 0],
-  //             scale: [1, 1, 1],
-  //             src: content.url,
-  //             type: content.type
-  //           })
-  //         ) ?? []
-  //       )
-  //     } else {
-  //       // if (!window.apps_modal.open) {
-  //       //   window.apps_modal.showModal()
-  //       // }
-  //     }
-  //   }
-  // }, [experience.isSuccess, experience.data, setSceneContents])
+  useEffect(() => {
+    if (currApp.isSuccess && currApp.data) {
+      setExpsQuery({ app_id: currApp.data.id })
+      setEditor(prev => ({ ...prev, app: currApp.data }))
+    }
+  }, [currApp.isSuccess, currApp.data, setExpsQuery, setEditor])
 
   useEffect(() => {
-    if (app.isSuccess && app.data) {
-      setEditor({ app: app.data, experiences: [] })
+    if (exps.isSuccess && exps.data) {
+      setEditor(prev => ({ ...prev, experiences: exps.data }))
+      // if (exps.data.length > 0) {
+      //   setExpQuery(exps.data[0].id)
+      // }
     }
-  }, [app.isSuccess, app.data, setEditor])
+  }, [exps.isSuccess, exps.data, /* setExpQuery, */ setEditor])
 
-  if (app.isInitialLoading) {
+  if (currApp.isInitialLoading) {
     return <LoadingScreen />
   }
 
@@ -230,7 +272,7 @@ export default function EditorPage() {
         </form>
       </dialog>
 
-      {app.isSuccess && app.data === null ? (
+      {currApp.isSuccess && currApp.data === null ? (
         <div className='flex max-w-xs flex-col items-stretch justify-center space-y-2'>
           <button
             id='create-app-btn'
@@ -463,14 +505,43 @@ export default function EditorPage() {
             {editTabIndex === 2 ? (
               <div id='experience-sidebar' className='space-y-1'>
                 <div className='form-control w-full'>
-                  <button className='btn-primary btn'>Add</button>
+                  <button className='btn-primary btn' onClick={handleExpCreate}>
+                    New
+                  </button>
+                </div>
+                {editor.experiences && editor.experiences.length > 0 ? (
+                  <div className='form-control w-full'>
+                    <select
+                      className='select-bordered select'
+                      value={currExpIndex}
+                      onChange={handleExpSelect}
+                    >
+                      {editor.experiences.map((exp, index) => (
+                        <option key={index} value={index}>
+                          {exp.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <div className='form-control w-full'>
+                  <label className='label'>
+                    <span className='label-text'>Experience Name</span>
+                  </label>
+                  <input
+                    type='text'
+                    placeholder='Experience Name'
+                    className='input-bordered input w-full'
+                    value={editor.experiences[currExpIndex].name}
+                    onChange={handleEditorExpChange(currExpIndex, 'name')}
+                  />
                 </div>
               </div>
             ) : null}
           </div>
           <div className='relative h-full flex-grow text-base-content'>
             <button
-              className='btn-primary btn-sm btn absolute left-2 top-2'
+              className='btn-primary btn-sm btn absolute left-2 top-2 z-40'
               onClick={handleSave}
             >
               Save

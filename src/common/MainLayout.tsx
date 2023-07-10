@@ -115,9 +115,9 @@ export default function MainLayout() {
                   </li>
                 </ul>
               </li>
-              <li>
+              {/* <li>
                 <button>Templates</button>
-              </li>
+              </li> */}
             </ul>
           </div>
           <a className='btn-ghost btn text-2xl normal-case'>SpearXR Studio</a>
@@ -140,9 +140,9 @@ export default function MainLayout() {
                 </ul>
               </details>
             </li>
-            <li>
+            {/* <li>
               <button>Templates</button>
-            </li>
+            </li> */}
           </ul>
         </div>
         <div className='navbar-end space-x-2'>

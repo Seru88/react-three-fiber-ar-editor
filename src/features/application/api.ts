@@ -44,6 +44,7 @@ export async function createApp(request: CreateAppRequest) {
     .then(res => res.data.app)
     .catch(error => throwNetworkError(error))
 }
+
 export function getApps(params: GetAppsQuery) {
   if (!params.id && !params.user_id) return Promise.resolve([])
   return axios

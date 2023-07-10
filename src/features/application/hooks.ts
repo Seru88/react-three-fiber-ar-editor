@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CreateAppRequest, createApp, updateApp } from './api'
 import { useAtom } from 'jotai'
+
+import { createApp, CreateAppRequest, updateApp } from './api'
 import { appQueryAtom, appsQueryAtom } from './atoms'
-import { toast } from 'react-hot-toast'
 
 export function useAppMutation() {
   const [appQuery, setAppQuery] = useAtom(appQueryAtom)
@@ -12,11 +12,8 @@ export function useAppMutation() {
   const create = useMutation(createApp, {
     onSuccess: data => {
       setAppQuery(data.id)
-      // queryClient.invalidateQueries(['app', query])
+      // queryClient.invalidateQueries(['app', appQuery])
       queryClient.invalidateQueries(['apps', appsQuery])
-    },
-    onError: error => {
-      toast.error((error as Error).message)
     }
   })
 
@@ -31,10 +28,6 @@ export function useAppMutation() {
       onSuccess: () => {
         queryClient.invalidateQueries(['app', appQuery])
         queryClient.invalidateQueries(['apps', appsQuery])
-        toast.success('Saved!')
-      },
-      onError: error => {
-        toast.error((error as Error).message)
       }
     }
   )

@@ -6,121 +6,82 @@ import {
   throwNetworkError
 } from 'common/utils'
 
-/***************************************
- *              Experience             *
- ***************************************/
 export type Experience = {
-  access_token: string | null
-  asset_transform_info: AssetContent[] | null
-  asset_uuids?: string[]
-  author_name: string
-  contact_email: string
-  count_likes: number
+  app_id: number
   created: string // datetime
-  current_ip_has_liked: boolean
-  deleted: boolean
-  description: string | null
   id: number
-  is_from_custom: boolean
-  marker: Marker | null
-  marker_floor_to_center_height: number | null
-  meta: unknown
   modified: string // datetime
-  name: string | null
-  product_id: number | null
-  scene_color: string
-  settings: {
-    can_comment: boolean
-    can_feature: boolean
-    can_screenshot: boolean
-    can_view_3d: boolean
-    can_view_markerbased: boolean
-    can_view_markerless: boolean
-    can_voice_chat: boolean
-    hide_easel: boolean
-    is_public: boolean
-    is_vertical: boolean
-    notify_on_view: boolean
-    password: string
-  }
-  should_watermark: boolean
-  showcase_ids: number[]
-  user_id: number
-  uuid: string
+  name: string
+  transform: object
+}
+
+export type CreateExperienceRequest = {
+  name?: string
+  marker_image?: File
+  app_id: number
+  asset_uuid?: string[]
 }
 
 export type GetExperiencesQuery = {
-  uuid?: string
-  short_code?: string
+  id?: number
+  user_id?: number
+  app_id?: number
 }
 
-/**
- * Retrieve an experience by its uuid or short_code. Must use one of them or else it will return null.
- * @param params Query parameters.
- * @returns
- */
-export function getExperience(
-  params: GetExperiencesQuery
-): Promise<Experience | null> {
-  if (!params.uuid && !params.short_code) {
-    return Promise.resolve(null)
-  }
+export function createExperience(request: CreateExperienceRequest) {
+  const form = getFormDataFromObject(request)
   return axios
-    .get<{ experiences: Experience[] } & XrpServerResponse>(
-      '/api/v1/experiences',
-      { params }
+    .post<XrpServerResponse & { experience: Experience }>(
+      '/api/v1/experience/create',
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
     )
-    .then(async res => {
-      const exp = res.data.experiences[0]
-      const tasks: Promise<AssetContentUrls>[] = []
-      exp.asset_transform_info?.forEach(content => {
-        tasks.push(
-          getAssetContentUrl(content.uuid, undefined, exp.access_token)
-        )
-      })
-      const urls = await Promise.all(tasks)
-      exp.asset_transform_info?.forEach(
-        (content, index) => (content.url = urls[index].backup_url ?? '')
-      )
-      return exp
-    })
-}
-
-export function getExperiences(
-  params: GetExperiencesQuery
-): Promise<Experience[]> {
-  return axios
-    .get('/api/v1/experiences', { params })
-    .then(res => res.data.experiences)
-    .catch(error => throwNetworkError(error))
-}
-
-export function createExperience(
-  req: Omit<
-    Partial<Experience>,
-    | 'access_token'
-    | 'count_likes'
-    | 'create'
-    | 'current_ip_has_liked'
-    | 'delete'
-    | 'id'
-    | 'marker'
-    | 'modified'
-    | 'should_watermark'
-    | 'showcase_ids'
-    | 'user_id'
-    | 'uuid'
-  > & { marker_uuid?: string }
-): Promise<Experience> {
-  return axios
-    .post('/api/v1/experience/create', req)
     .then(res => res.data.experience)
     .catch(error => throwNetworkError(error))
 }
 
-export function updateExperience(uuid: string): Promise<Experience> {
+export function getExperiences(params: GetExperiencesQuery) {
+  if (!params.id && !params.user_id && !params.app_id) {
+    return Promise.resolve([])
+  }
   return axios
-    .put(`/api/v1/experience/${uuid}`)
+    .get<XrpServerResponse & { experiences: Experience[] }>(
+      '/api/v1/experiences',
+      { params }
+    )
+    .then(res => res.data.experiences)
+    .catch(error => throwNetworkError(error))
+}
+
+export function getExperience(id: number) {
+  return getExperiences({ id }).then(exps => {
+    if (exps.length > 0) return exps[0]
+    return null
+  })
+}
+
+export function updateExperience(
+  id: number,
+  request: Partial<CreateExperienceRequest>
+) {
+  const form = getFormDataFromObject(request)
+  return axios
+    .put<XrpServerResponse & { experience: Experience }>(
+      `/api/v1/experience/${id}`,
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      }
+    )
+    .then(res => res.data.experience)
+    .catch(error => throwNetworkError(error))
+}
+
+export function deleteExperience(id: number) {
+  return axios
+    .delete<XrpServerResponse & { experience: Experience }>(
+      `/api/v1/experience/${id}`
+    )
     .then(res => res.data.experience)
     .catch(error => throwNetworkError(error))
 }
