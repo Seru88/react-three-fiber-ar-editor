@@ -12,7 +12,6 @@ import {
   AuthenticationResponse,
   login,
   LoginRequest,
-  logout,
   refreshLogin,
   User
 } from './api'
@@ -72,16 +71,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
   })
 
-  const logoutMutation = useMutation(logout, {
+  const logoutMutation = useMutation(async () => null, {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: [refreshToken] })
       // const prev = queryClient.getQueryData([refreshToken])
-      queryClient.setQueryData([refreshToken], () => null)
+      // queryClient.setQueryData([refreshToken], () => null)
       // return prev
     },
     onSuccess: () => {
       setAccessToken(null)
       setRefreshToken(null)
+      queryClient.setQueryData([refreshToken], () => null)
     },
     onError: (error /* variables, context */) => {
       toast.error((error as Error).message)

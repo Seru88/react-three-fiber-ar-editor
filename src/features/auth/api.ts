@@ -43,12 +43,12 @@ export function login(credentials: LoginRequest) {
     .catch(error => throwNetworkError(error))
 }
 
-export function logout() {
-  return axios
-    .get<XrpServerResponse>('/api/v1/logout')
-    .then(() => null)
-    .catch(error => throwNetworkError(error))
-}
+// export function logout() {
+//   return axios
+//     .get<XrpServerResponse>('/api/v1/logout')
+//     .then(() => null)
+//     .catch(error => throwNetworkError(error))
+// }
 
 export function refreshLogin(refresh_token: string) {
   return axios

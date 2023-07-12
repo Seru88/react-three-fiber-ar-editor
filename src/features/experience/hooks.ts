@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CreateExperienceRequest,
   createExperience,
+  deleteExperience,
   updateExperience
 } from './api'
 import { toast } from 'react-hot-toast'
@@ -39,5 +40,11 @@ export function useExperienceMutation() {
     }
   )
 
-  return { create, update }
+  const remove = useMutation(deleteExperience, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['exps', expsQuery])
+    }
+  })
+
+  return { create, update, remove }
 }

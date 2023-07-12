@@ -8,18 +8,31 @@ import {
 
 export type Experience = {
   app_id: number
+  asset_uuids: string[]
   created: string // datetime
   id: number
+  marker_image_url: string | null
   modified: string // datetime
   name: string
-  transform: object
+  transform: ContentTransform[] | null
+}
+
+export type ContentTransform = {
+  asset_name: string
+  asset_uuid: string
+  instance_id: string
+  position: number[]
+  quaternion: number[]
+  rotation: number[]
+  scale: number[]
 }
 
 export type CreateExperienceRequest = {
   name?: string
   marker_image?: File
   app_id: number
-  asset_uuid?: string[]
+  asset_uuids?: string[]
+  transform?: ContentTransform[]
 }
 
 export type GetExperiencesQuery = {

@@ -167,7 +167,7 @@ export default function MainLayout() {
           </button>
         </div>
       </div>
-      <div className='flex-grow'>
+      <div className='overflow-hidden' style={{ height: 'calc(100% - 64px)' }}>
         <Outlet />
       </div>
     </div>

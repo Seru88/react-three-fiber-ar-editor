@@ -15,6 +15,18 @@ export type Asset = {
   uuid: string
 }
 
+export type PresignedAssetPost = {
+  fields: {
+    AWSAccessKeyId: string
+    key: string
+    policy: string
+    signature: string
+    success_action_redirect: string
+    'x-amz-meta-uuid': string
+  }
+  url: string
+}
+
 export type CreateAssetRequest = {
   name?: string
   file: File
@@ -36,6 +48,40 @@ export function createAsset(request: CreateAssetRequest) {
     .catch(error => throwNetworkError(error))
 }
 
+export function createPresignedAsset(file: File) {
+  const getPresignedPostRequest = {
+    'x-amz-meta-name': file.name,
+    'Content-Type':
+      file.type === '' &&
+      (file.name.includes('.glb') || file.name.includes('.gltf'))
+        ? 'model/gltf-binary'
+        : file.type
+  }
+  return axios
+    .post<XrpServerResponse & { presigned_post: PresignedAssetPost }>(
+      '/api/v1/asset/presigned_post',
+      getPresignedPostRequest
+    )
+    .then(res => {
+      const { fields, url } = res.data.presigned_post
+      // const form = getFormDataFromObject(fields)
+      // form.append('file', file)
+      const fetcher = axios.create()
+      fetcher.defaults.headers.common = {}
+      return fetcher.post<XrpServerResponse & { asset: Asset }>(
+        url,
+        { ...fields, file },
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      )
+    })
+    .then(({ data: { asset } }) => asset)
+    .catch(error => throwNetworkError(error))
+}
+
 export function getAssets(params: GetAssetsQuery) {
   if (!params.experience_id && !params.name && !params.user_id) {
     return Promise.resolve([])
@@ -45,8 +91,6 @@ export function getAssets(params: GetAssetsQuery) {
     .then(res => res.data.assets)
     .catch(error => throwNetworkError(error))
 }
-
-// export function getAsset() {}
 
 export function updateAsset(
   uuid: string,

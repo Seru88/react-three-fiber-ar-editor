@@ -1,13 +1,23 @@
 import clsx from 'clsx'
-import ExperienceScene from 'features/experience/ExperienceScene'
+import LoadingScreen from 'common/LoadingScreen'
+import { App, CreateAppRequest } from 'features/application/api'
+import {
+  appAtom,
+  appQueryAtom,
+  appsAtom,
+  appsQueryAtom
+} from 'features/application/atoms'
+import { useAppMutation } from 'features/application/hooks'
+import { createPresignedAsset } from 'features/asset/api'
+import useAuth from 'features/auth/useAuth'
+import { editorAtom } from 'features/editor/atoms'
+import { Experience } from 'features/experience/api'
 import {
   experiencesAtom,
-  // experienceQueryAtom,
-  sceneAssetContentsAtom,
   experiencesQueryAtom
-  // experienceAtom
-  // SceneAssetContentState
 } from 'features/experience/atoms'
+import ExperienceScene from 'features/experience/ExperienceScene'
+import { useExperienceMutation } from 'features/experience/hooks'
 import { generateInstanceID } from 'features/experience/utils'
 import { useAtom } from 'jotai'
 import {
@@ -18,29 +28,20 @@ import {
   useEffect,
   useState
 } from 'react'
+import { HexColorInput, HexColorPicker } from 'react-colorful'
 import { FileRejection, useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
-import { HexColorPicker, HexColorInput } from 'react-colorful'
-import {
-  appAtom,
-  appQueryAtom,
-  appsAtom,
-  appsQueryAtom
-} from 'features/application/atoms'
-import LoadingScreen from 'common/LoadingScreen'
-import { useAppMutation } from 'features/application/hooks'
-import { editorAtom } from 'features/editor/atoms'
-import useAuth from 'features/auth/useAuth'
-import { App, CreateAppRequest } from 'features/application/api'
-import { useExperienceMutation } from 'features/experience/hooks'
-import { Experience } from 'features/experience/api'
 
 const MEGABYTE = 1000000
 
 export default function EditorPage() {
   const { user } = useAuth()
   const { create: createApp, update: updateApp } = useAppMutation()
-  const { create: createExp, update: updateExp } = useExperienceMutation()
+  const {
+    create: createExp,
+    update: updateExp,
+    remove: removeExp
+  } = useExperienceMutation()
 
   // List of Apps
   const [, setAppsQuery] = useAtom(appsQueryAtom)
@@ -68,9 +69,10 @@ export default function EditorPage() {
   const [appLogoFile, setAppLogoFile] = useState<File>()
   const [appLandingImgFile, setAppLandingImgFile] = useState<File>()
   const [appInstructionImgFile, setAppInstructionImgFile] = useState<File>()
-  const [currExpIndex, setCurrExpIndex] = useState<number>(0)
+  const [currExpIndex, setCurrExpIndex] = useState<number | null>(null)
+  const [currAssetIndex, setCurrAssetIndex] = useState<number | null>(null)
 
-  const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
+  // const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
 
   const handleAppCreate = async () => {
     await createApp.mutateAsync({
@@ -107,15 +109,39 @@ export default function EditorPage() {
     setCurrExpIndex(index)
   }
 
-  const handleExpCreate = async () => {
-    if (currApp.data) {
-      await createExp.mutateAsync({
-        name: 'Untitled',
-        app_id: currApp.data?.id
-      })
-    } else {
-      throw new Error('No app loaded to associate.')
-    }
+  const handleExpCreate = () => {
+    if (!currApp.data) return
+    toast.promise(
+      createExp.mutateAsync({ name: 'Untitled', app_id: currApp.data.id }),
+      {
+        loading: 'Adding...',
+        success: () => {
+          console.log(exps.data?.length)
+          return 'Added!'
+        },
+        error: err => (err as Error).message
+      }
+    )
+  }
+
+  const handleExpRemove = () => {
+    if (currExpIndex === null) return
+    const exp = editor.experiences[currExpIndex]
+    toast.promise(removeExp.mutateAsync(exp.id), {
+      loading: 'Removing...',
+      success: () => {
+        setCurrExpIndex(null)
+        setEditor(prev => ({
+          ...prev,
+          experiences: [
+            ...prev.experiences.slice(0, currExpIndex),
+            ...prev.experiences.slice(currExpIndex + 1)
+          ]
+        }))
+        return 'Removed!'
+      },
+      error: err => (err as Error).message
+    })
   }
 
   const handleEditorExpChange =
@@ -136,65 +162,95 @@ export default function EditorPage() {
       })
     }
 
-  const handleSave = async () => {
-    try {
-      if (editor.app) {
-        const appUpdate: Partial<CreateAppRequest> = {
-          background_image: appLandingBGImgFile,
-          button_background_color: editor.app.button_background_color,
-          button_text_color: editor.app.button_text_color,
-          image: appLandingImgFile,
-          instructions_image: appInstructionImgFile,
-          logo_image: appLogoFile,
-          button_text: editor.app.button_text,
-          name: editor.app.name,
-          text: editor.app.text
-        }
-        await updateApp.mutateAsync(appUpdate)
+  const handleAssetSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
+    ev.preventDefault()
+    const index = parseInt(ev.target.value)
+    setCurrAssetIndex(index)
+  }
+
+  const save = async () => {
+    if (editor.app) {
+      const appUpdate: Partial<CreateAppRequest> = {
+        background_image: appLandingBGImgFile,
+        button_background_color: editor.app.button_background_color,
+        button_text_color: editor.app.button_text_color,
+        image: appLandingImgFile,
+        instructions_image: appInstructionImgFile,
+        logo_image: appLogoFile,
+        button_text: editor.app.button_text,
+        name: editor.app.name,
+        text: editor.app.text
       }
-      if (editor.experiences.length > 0) {
-        const tasks = editor.experiences.map(exp =>
-          updateExp.mutateAsync({
-            id: editor.experiences[currExpIndex].id,
-            request: {
-              name: exp.name,
-              // marker_image: undefined,
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              app_id: editor.app!.id
-              // asset_uuid: undefined
-            }
-          })
-        )
-        await Promise.all(tasks)
-      }
-    } catch (error) {
-      toast.error((error as Error).message)
+      await updateApp.mutateAsync(appUpdate)
     }
+    const tasks = editor.experiences.map(exp => {
+      console.log(exp)
+      return updateExp.mutateAsync({
+        id: exp.id,
+        request: {
+          name: exp.name,
+          // marker_image: undefined,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          app_id: editor.app!.id,
+          asset_uuids: exp.asset_uuids,
+          transform: exp.transform ?? []
+        }
+      })
+    })
+    await Promise.all(tasks)
+  }
+
+  const handleSave = () => {
+    if (editor.app === null) return
+    toast.promise(save(), {
+      loading: 'Saving...',
+      success: 'Saved!',
+      error: err => (err as Error).message
+    })
   }
 
   const handleFileAccepted = useCallback(
     (files: File[]) => {
+      if (currExpIndex === null) {
+        toast.error('Pick an experience first!')
+        return
+      }
       const file = files[0]
-      const src = URL.createObjectURL(file)
-      const type = file.type.includes('image')
-        ? 'image'
-        : file.type.includes('video')
-        ? 'video'
-        : '3d'
-      setSceneContents(prev => [
-        ...prev,
-        {
-          instanceID: generateInstanceID(),
-          position: [0, 0, 0],
-          quaternion: [0, 0, 0, 1],
-          rotation: [0, 0, 0],
-          scale: [1, 1, 1],
-          src: src,
-          type
-        }
-      ])
+      toast.promise(createPresignedAsset(file), {
+        loading: `Adding ${file.name}`,
+        success: asset => {
+          setEditor(prev => {
+            if (currExpIndex === null) return prev
+            const currExp = prev.experiences[currExpIndex]
+            return {
+              ...prev,
+              experiences: [
+                ...prev.experiences.slice(0, currExpIndex),
+                {
+                  ...currExp,
+                  asset_uuids: [...currExp.asset_uuids, asset.uuid],
+                  transform: [
+                    ...(currExp.transform ?? []),
+                    {
+                      asset_name: asset.name,
+                      asset_uuid: asset.uuid,
+                      instance_id: generateInstanceID(),
+                      position: [0, 0, 0],
+                      quaternion: [0, 0, 0, 1],
+                      rotation: [0, 0, 0],
+                      scale: [1, 1, 1]
+                    }
+                  ]
+                }
+              ]
+            }
+          })
+          return 'Added!'
+        },
+        error: err => (err as Error).message
+      })
     },
-    [setSceneContents]
+    [currExpIndex, setEditor]
   )
 
   const handleFileRejected = useCallback((fileRejections: FileRejection[]) => {
@@ -202,7 +258,7 @@ export default function EditorPage() {
     toast.error(rejection.errors[0].message)
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     accept: {
       'image/jpeg': [],
       'image/png': [],
@@ -230,12 +286,27 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (exps.isSuccess && exps.data) {
-      setEditor(prev => ({ ...prev, experiences: exps.data }))
-      // if (exps.data.length > 0) {
-      //   setExpQuery(exps.data[0].id)
-      // }
+      setEditor(prev => ({
+        ...prev,
+        experiences: exps.data.map(e => ({
+          ...e,
+          transform:
+            e.transform && e.transform.length
+              ? e.transform.map(t => ({
+                  ...t,
+                  instance_id: t.instance_id ?? generateInstanceID()
+                }))
+              : []
+        }))
+      }))
     }
   }, [exps.isSuccess, exps.data, /* setExpQuery, */ setEditor])
+
+  useEffect(() => {
+    if (currExpIndex !== null) {
+      setCurrAssetIndex(null)
+    }
+  }, [currExpIndex])
 
   if (currApp.isInitialLoading) {
     return <LoadingScreen />
@@ -251,24 +322,31 @@ export default function EditorPage() {
           <h3 className='mb-4 text-xl font-medium text-base-content'>
             Choose an App
           </h3>
-          <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
-            {apps.data && apps.data.length > 0 ? (
-              <>
-                {apps.data?.map(a => (
-                  <div key={a.name} className='card-bordered card'>
-                    <button
-                      className='btn-ghost btn flex aspect-square h-auto flex-col items-center justify-center text-lg font-bold normal-case'
-                      onClick={handleAppLoad(a)}
-                    >
-                      {a.name}
-                    </button>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div>No apps to load.</div>
-            )}
-          </div>
+          {apps.isLoading ? (
+            <div className='flex w-full items-center justify-center p-2'>
+              <span className='loading loading-infinity loading-lg' />
+            </div>
+          ) : (
+            <>
+              {apps.data && apps.data.length > 0 ? (
+                <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
+                  {apps.data?.map(a => (
+                    <div key={a.id} className='card-bordered card'>
+                      <button
+                        className='btn-ghost btn flex aspect-square h-auto flex-col items-center justify-center text-lg font-bold normal-case'
+                        onClick={handleAppLoad(a)}
+                      >
+                        {a.name}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className='w-full text-center'>No apps to load.</div>
+              )}
+            </>
+          )}
+          <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'></div>
         </form>
       </dialog>
 
@@ -294,7 +372,7 @@ export default function EditorPage() {
         </div>
       ) : (
         <div className='flex h-full w-full'>
-          <div className='h-full w-96 bg-base-200 p-2'>
+          <div className='h-full max-h-full w-96 overflow-y-auto overflow-x-hidden bg-base-200 px-5 py-2'>
             <div className='mb-2'>
               <div className='form-control w-full'>
                 <label className='label'>
@@ -504,18 +582,16 @@ export default function EditorPage() {
             ) : null}
             {editTabIndex === 2 ? (
               <div id='experience-sidebar' className='space-y-1'>
-                <div className='form-control w-full'>
-                  <button className='btn-primary btn' onClick={handleExpCreate}>
-                    New
-                  </button>
-                </div>
                 {editor.experiences && editor.experiences.length > 0 ? (
                   <div className='form-control w-full'>
                     <select
                       className='select-bordered select'
-                      value={currExpIndex}
+                      value={currExpIndex ?? ''}
                       onChange={handleExpSelect}
                     >
+                      <option value='' disabled>
+                        Pick an experience
+                      </option>
                       {editor.experiences.map((exp, index) => (
                         <option key={index} value={index}>
                           {exp.name}
@@ -524,24 +600,156 @@ export default function EditorPage() {
                     </select>
                   </div>
                 ) : null}
-                <div className='form-control w-full'>
-                  <label className='label'>
-                    <span className='label-text'>Experience Name</span>
-                  </label>
-                  <input
-                    type='text'
-                    placeholder='Experience Name'
-                    className='input-bordered input w-full'
-                    value={editor.experiences[currExpIndex].name}
-                    onChange={handleEditorExpChange(currExpIndex, 'name')}
-                  />
+                <div className='grid w-full grid-cols-2 gap-1'>
+                  <button
+                    className='btn-primary btn w-full'
+                    disabled={createExp.isLoading}
+                    onClick={handleExpCreate}
+                  >
+                    New
+                  </button>
+                  <button
+                    className='btn-warning btn w-full'
+                    disabled={removeExp.isLoading || currExpIndex === null}
+                    onClick={handleExpRemove}
+                  >
+                    Remove
+                  </button>
                 </div>
+                {editor.experiences.length > 0 && currExpIndex !== null ? (
+                  <div
+                    className='space-y-1 border-2 px-3 pb-3'
+                    style={{
+                      borderRadius: 'var(--rounded-btn, 0.5rem)',
+                      borderColor: 'hsl(var(--bc) / 0.1)'
+                    }}
+                  >
+                    <div className='form-control w-full'>
+                      <label className='label'>
+                        <span className='label-text'>Experience Name</span>
+                      </label>
+                      <input
+                        type='text'
+                        placeholder='Experience Name'
+                        className='input-bordered input w-full'
+                        value={editor.experiences[currExpIndex].name}
+                        onChange={handleEditorExpChange(currExpIndex, 'name')}
+                      />
+                    </div>
+                    {/* {editor.experiences[currExpIndex].transform &&
+                    editor.experiences[currExpIndex].transform?.length ? (
+                      
+                    ) : null} */}
+
+                    <div className='form-control w-full'>
+                      <label className='label'>
+                        <span className='label-text'>Assets</span>
+                      </label>
+                      <select
+                        className='select-bordered select'
+                        value={currAssetIndex ?? ''}
+                        onChange={handleAssetSelect}
+                      >
+                        <option value='' disabled>
+                          {editor.experiences[currExpIndex].transform?.length
+                            ? 'Pick an asset'
+                            : 'Add and asset'}
+                        </option>
+                        {editor.experiences[currExpIndex].transform?.map(
+                          (tr, index) => (
+                            <option key={index} value={index}>
+                              {tr.asset_name}
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </div>
+
+                    <div className='grid w-full grid-cols-2 gap-1'>
+                      <button
+                        className='btn-primary btn-sm btn w-full'
+                        // disabled={createExp.isLoading}
+                        onClick={open}
+                      >
+                        Add
+                      </button>
+                      <button
+                        className='btn-warning btn-sm btn w-full'
+                        // disabled={removeExp.isLoading || currExpIndex === null}
+                        // onClick={handleExpRemove}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {currExpIndex !== null &&
+                    currAssetIndex !== null &&
+                    editor.experiences[currExpIndex].transform?.length ? (
+                      <div
+                        className='border-2 px-3 pb-3'
+                        style={{
+                          borderRadius: 'var(--rounded-btn, 0.5rem)',
+                          borderColor: 'hsl(var(--bc) / 0.1)'
+                        }}
+                      >
+                        <div className='form-control w-full'>
+                          <label className='label'>
+                            <span className='label-text'>Asset Name</span>
+                          </label>
+                          <input
+                            type='text'
+                            // placeholder='Button Label'
+                            className='input-bordered input w-full'
+                            value={
+                              editor.experiences[currExpIndex].transform![
+                                currAssetIndex
+                              ].asset_name
+                            }
+                            onChange={ev => {
+                              ev.preventDefault()
+                              if (
+                                currExpIndex === null ||
+                                currAssetIndex === null
+                              ) {
+                                return
+                              }
+                              const exp = editor.experiences[currExpIndex]
+                              const transform = exp.transform
+                              if (transform) {
+                                const asset = transform[currAssetIndex]
+                                setEditor(prev => ({
+                                  ...prev,
+                                  experiences: [
+                                    ...prev.experiences.slice(0, currExpIndex),
+                                    {
+                                      ...exp,
+                                      transform: [
+                                        ...transform.slice(0, currAssetIndex),
+                                        {
+                                          ...asset,
+                                          asset_name: ev.target.value
+                                        },
+                                        ...transform.slice(currAssetIndex + 1)
+                                      ]
+                                    },
+                                    ...prev.experiences.slice(currExpIndex + 1)
+                                  ]
+                                }))
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
           <div className='relative h-full flex-grow text-base-content'>
             <button
               className='btn-primary btn-sm btn absolute left-2 top-2 z-40'
+              disabled={updateApp.isLoading || updateExp.isLoading}
               onClick={handleSave}
             >
               Save

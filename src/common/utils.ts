@@ -8,7 +8,10 @@ export const getAuthorizationHeader = (token: string) => ({
 export const getFormDataFromObject = (object: Record<string, unknown>) =>
   Object.keys(object).reduce((formData, key) => {
     if (object[key] === undefined) return formData
-    formData.append(key, object[key] as string | Blob)
+    const value = Array.isArray(object[key])
+      ? JSON.stringify(object[key] as Array<unknown>)
+      : (object[key] as string | Blob)
+    formData.append(key, value)
     return formData
   }, new FormData())
 
@@ -22,6 +25,9 @@ export const isXrpBackendError = (
 }
 
 export const throwNetworkError = (r: unknown) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(r)
+  }
   if (r instanceof CanceledError) throw r
   if (isXrpBackendError(r))
     throw new Error(r?.response?.data?.error ?? undefined)

@@ -33,7 +33,7 @@ function App() {
           </AuthProvider>
         </HydrateAtoms>
       </Provider>
-      <Toaster />
+      <Toaster position='bottom-center' />
     </QueryClientProvider>
   )
 }
