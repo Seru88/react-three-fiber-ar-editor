@@ -10,7 +10,14 @@ import {
 import { useAppMutation } from 'features/application/hooks'
 import { createPresignedAsset } from 'features/asset/api'
 import useAuth from 'features/auth/useAuth'
-import { editorAtom } from 'features/editor/atoms'
+import {
+  currEditingAssetAtom,
+  currEditingAssetIndexAtom,
+  currEditingExperienceAtom,
+  currEditingExperienceIndexAtom,
+  editorAppAtom,
+  editorExperiencesAtom
+} from 'features/editor/atoms'
 import { Experience } from 'features/experience/api'
 import {
   experiencesAtom,
@@ -45,34 +52,38 @@ export default function EditorPage() {
 
   // List of Apps
   const [, setAppsQuery] = useAtom(appsQueryAtom)
-  const [apps] = useAtom(appsAtom)
+  const [appsList] = useAtom(appsAtom)
 
   // Current App
+  // * Might want to just use appsList only.
   const [, setAppQuery] = useAtom(appQueryAtom)
-  const [currApp] = useAtom(appAtom)
+  const [app] = useAtom(appAtom)
 
   // List of Experiences for Current App
   const [, setExpsQuery] = useAtom(experiencesQueryAtom)
-  const [exps] = useAtom(experiencesAtom)
-
-  // Current Experience of Current App
-  // const [, setExpQuery] = useAtom(experienceQueryAtom)
-  // const [currExp] = useAtom(experienceAtom)
+  const [expsList] = useAtom(experiencesAtom)
 
   // Editor State
-  const [editor, setEditor] = useAtom(editorAtom)
+  const [editorApp, setEditorApp] = useAtom(editorAppAtom)
+  const [editorExperiences, setEditorExperiences] = useAtom(
+    editorExperiencesAtom
+  )
+  const [currExpIndex, setCurrExpIndex] = useAtom(
+    currEditingExperienceIndexAtom
+  )
+  const [currAssetIndex, setCurrAssetIndex] = useAtom(currEditingAssetIndexAtom)
+  const [currEditingExperience, setCurrEditingExperience] = useAtom(
+    currEditingExperienceAtom
+  )
+  const [currEditingAsset, setCurrAssetContent] = useAtom(currEditingAssetAtom)
 
   // UI
-  const [editTabIndex, setEditTabIndex] = useState(0)
+  const [sidebarTabIndex, setSidebarTabIndex] = useState(0)
   const [appDescription, setAppDescriptionn] = useState('')
   const [appLandingBGImgFile, setAppLandingBGImgFile] = useState<File>()
   const [appLogoFile, setAppLogoFile] = useState<File>()
   const [appLandingImgFile, setAppLandingImgFile] = useState<File>()
   const [appInstructionImgFile, setAppInstructionImgFile] = useState<File>()
-  const [currExpIndex, setCurrExpIndex] = useState<number | null>(null)
-  const [currAssetIndex, setCurrAssetIndex] = useState<number | null>(null)
-
-  // const [, setSceneContents] = useAtom(sceneAssetContentsAtom)
 
   const handleAppCreate = async () => {
     await createApp.mutateAsync({
@@ -89,18 +100,11 @@ export default function EditorPage() {
     setExpsQuery({ app_id: app.id })
   }
 
-  const handleEditorAppChange =
+  const handleEditorAppInputChange =
     (key: keyof App) => (ev: ChangeEvent<HTMLInputElement> | string) => {
       if (typeof ev === 'object') ev.preventDefault()
       const value = typeof ev === 'object' ? ev.target.value : ev
-      setEditor(prev =>
-        prev.app
-          ? {
-              ...prev,
-              app: { ...prev.app, [key]: value }
-            }
-          : prev
-      )
+      setEditorApp(prev => prev && { ...prev, [key]: value })
     }
 
   const handleExpSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
@@ -110,13 +114,13 @@ export default function EditorPage() {
   }
 
   const handleExpCreate = () => {
-    if (!currApp.data) return
+    if (!app.data) return
     toast.promise(
-      createExp.mutateAsync({ name: 'Untitled', app_id: currApp.data.id }),
+      createExp.mutateAsync({ name: 'Untitled', app_id: app.data.id }),
       {
         loading: 'Adding...',
         success: () => {
-          console.log(exps.data?.length)
+          // TODO: Come up way to give focus to newly added experience.
           return 'Added!'
         },
         error: err => (err as Error).message
@@ -125,41 +129,22 @@ export default function EditorPage() {
   }
 
   const handleExpRemove = () => {
-    if (currExpIndex === null) return
-    const exp = editor.experiences[currExpIndex]
-    toast.promise(removeExp.mutateAsync(exp.id), {
+    if (currEditingExperience === null) return
+    toast.promise(removeExp.mutateAsync(currEditingExperience.id), {
       loading: 'Removing...',
       success: () => {
-        setCurrExpIndex(null)
-        setEditor(prev => ({
-          ...prev,
-          experiences: [
-            ...prev.experiences.slice(0, currExpIndex),
-            ...prev.experiences.slice(currExpIndex + 1)
-          ]
-        }))
+        setCurrEditingExperience(null)
         return 'Removed!'
       },
       error: err => (err as Error).message
     })
   }
 
-  const handleEditorExpChange =
-    (index: number, key: keyof Experience) =>
-    (ev: ChangeEvent<HTMLInputElement> | string) => {
+  const handleEditorExpInputChange =
+    (key: keyof Experience) => (ev: ChangeEvent<HTMLInputElement> | string) => {
       if (typeof ev === 'object') ev.preventDefault()
       const value = typeof ev === 'object' ? ev.target.value : ev
-      setEditor(prev => {
-        const update = { ...prev.experiences[index], [key]: value }
-        return {
-          ...prev,
-          experiences: [
-            ...prev.experiences.slice(0, index),
-            update,
-            ...prev.experiences.slice(index + 1)
-          ]
-        }
-      })
+      setCurrEditingExperience(prev => prev && { ...prev, [key]: value })
     }
 
   const handleAssetSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
@@ -169,39 +154,37 @@ export default function EditorPage() {
   }
 
   const save = async () => {
-    if (editor.app) {
+    if (editorApp) {
       const appUpdate: Partial<CreateAppRequest> = {
         background_image: appLandingBGImgFile,
-        button_background_color: editor.app.button_background_color,
-        button_text_color: editor.app.button_text_color,
+        button_background_color: editorApp.button_background_color,
+        button_text_color: editorApp.button_text_color,
         image: appLandingImgFile,
         instructions_image: appInstructionImgFile,
         logo_image: appLogoFile,
-        button_text: editor.app.button_text,
-        name: editor.app.name,
-        text: editor.app.text
+        button_text: editorApp.button_text,
+        name: editorApp.name,
+        text: editorApp.text
       }
       await updateApp.mutateAsync(appUpdate)
-    }
-    const tasks = editor.experiences.map(exp => {
-      console.log(exp)
-      return updateExp.mutateAsync({
-        id: exp.id,
-        request: {
-          name: exp.name,
-          // marker_image: undefined,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          app_id: editor.app!.id,
-          asset_uuids: exp.asset_uuids,
-          transform: exp.transform ?? []
-        }
+      const tasks = editorExperiences.map(eExp => {
+        return updateExp.mutateAsync({
+          id: eExp.id,
+          request: {
+            name: eExp.name,
+            // marker_image: undefined,
+            app_id: editorApp.id,
+            asset_uuids: eExp.asset_uuids,
+            transform: eExp.transform ?? []
+          }
+        })
       })
-    })
-    await Promise.all(tasks)
+      await Promise.all(tasks)
+    }
   }
 
   const handleSave = () => {
-    if (editor.app === null) return
+    if (editorApp === null) return
     toast.promise(save(), {
       loading: 'Saving...',
       success: 'Saved!',
@@ -219,38 +202,30 @@ export default function EditorPage() {
       toast.promise(createPresignedAsset(file), {
         loading: `Adding ${file.name}`,
         success: asset => {
-          setEditor(prev => {
-            if (currExpIndex === null) return prev
-            const currExp = prev.experiences[currExpIndex]
-            return {
-              ...prev,
-              experiences: [
-                ...prev.experiences.slice(0, currExpIndex),
-                {
-                  ...currExp,
-                  asset_uuids: [...currExp.asset_uuids, asset.uuid],
-                  transform: [
-                    ...(currExp.transform ?? []),
-                    {
-                      asset_name: asset.name,
-                      asset_uuid: asset.uuid,
-                      instance_id: generateInstanceID(),
-                      position: [0, 0, 0],
-                      quaternion: [0, 0, 0, 1],
-                      rotation: [0, 0, 0],
-                      scale: [1, 1, 1]
-                    }
-                  ]
-                }
-              ]
-            }
-          })
+          setCurrEditingExperience(
+            prev =>
+              prev && {
+                ...prev,
+                transform: [
+                  ...(prev.transform ?? []),
+                  {
+                    asset_name: asset.name,
+                    asset_uuid: asset.uuid,
+                    instance_id: generateInstanceID(),
+                    position: [0, 0, 0],
+                    quaternion: [0, 0, 0, 1],
+                    rotation: [0, 0, 0],
+                    scale: [1, 1, 1]
+                  }
+                ]
+              }
+          )
           return 'Added!'
         },
         error: err => (err as Error).message
       })
     },
-    [currExpIndex, setEditor]
+    [currExpIndex, setCurrEditingExperience]
   )
 
   const handleFileRejected = useCallback((fileRejections: FileRejection[]) => {
@@ -278,17 +253,16 @@ export default function EditorPage() {
   }, [user, setAppsQuery])
 
   useEffect(() => {
-    if (currApp.isSuccess && currApp.data) {
-      setExpsQuery({ app_id: currApp.data.id })
-      setEditor(prev => ({ ...prev, app: currApp.data }))
+    if (app.isSuccess && app.data) {
+      setExpsQuery({ app_id: app.data.id })
+      setEditorApp(app.data)
     }
-  }, [currApp.isSuccess, currApp.data, setExpsQuery, setEditor])
+  }, [app.isSuccess, app.data, setExpsQuery, setEditorApp])
 
   useEffect(() => {
-    if (exps.isSuccess && exps.data) {
-      setEditor(prev => ({
-        ...prev,
-        experiences: exps.data.map(e => ({
+    if (expsList.isSuccess && expsList.data) {
+      setEditorExperiences(
+        expsList.data.map(e => ({
           ...e,
           transform:
             e.transform && e.transform.length
@@ -298,17 +272,17 @@ export default function EditorPage() {
                 }))
               : []
         }))
-      }))
+      )
     }
-  }, [exps.isSuccess, exps.data, /* setExpQuery, */ setEditor])
+  }, [expsList.isSuccess, expsList.data, setEditorExperiences])
 
   useEffect(() => {
     if (currExpIndex !== null) {
       setCurrAssetIndex(null)
     }
-  }, [currExpIndex])
+  }, [currExpIndex, setCurrAssetIndex])
 
-  if (currApp.isInitialLoading) {
+  if (app.isInitialLoading) {
     return <LoadingScreen />
   }
 
@@ -322,15 +296,15 @@ export default function EditorPage() {
           <h3 className='mb-4 text-xl font-medium text-base-content'>
             Choose an App
           </h3>
-          {apps.isLoading ? (
+          {appsList.isLoading ? (
             <div className='flex w-full items-center justify-center p-2'>
               <span className='loading loading-infinity loading-lg' />
             </div>
           ) : (
             <>
-              {apps.data && apps.data.length > 0 ? (
+              {appsList.data && appsList.data.length > 0 ? (
                 <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
-                  {apps.data?.map(a => (
+                  {appsList.data?.map(a => (
                     <div key={a.id} className='card-bordered card'>
                       <button
                         className='btn-ghost btn flex aspect-square h-auto flex-col items-center justify-center text-lg font-bold normal-case'
@@ -350,7 +324,7 @@ export default function EditorPage() {
         </form>
       </dialog>
 
-      {currApp.isSuccess && currApp.data === null ? (
+      {app.isSuccess && app.data === null ? (
         <div className='flex max-w-xs flex-col items-stretch justify-center space-y-2'>
           <button
             id='create-app-btn'
@@ -382,8 +356,8 @@ export default function EditorPage() {
                   type='text'
                   placeholder='App Name'
                   className='input-bordered input w-full'
-                  value={editor.app?.name ?? ''}
-                  onChange={handleEditorAppChange('name')}
+                  value={editorApp?.name ?? ''}
+                  onChange={handleEditorAppInputChange('name')}
                 />
               </div>
               <div className='form-control w-full'>
@@ -403,32 +377,32 @@ export default function EditorPage() {
             </div>
             <div className='tabs tabs-boxed justify-center'>
               <button
-                className={clsx('tab', editTabIndex === 0 && 'tab-active')}
+                className={clsx('tab', sidebarTabIndex === 0 && 'tab-active')}
                 onClick={() => {
-                  setEditTabIndex(0)
+                  setSidebarTabIndex(0)
                 }}
               >
                 Landing
               </button>
               <button
-                className={clsx('tab', editTabIndex === 1 && 'tab-active')}
+                className={clsx('tab', sidebarTabIndex === 1 && 'tab-active')}
                 onClick={() => {
-                  setEditTabIndex(1)
+                  setSidebarTabIndex(1)
                 }}
               >
                 Instructions
               </button>
               <button
-                className={clsx('tab', editTabIndex === 2 && 'tab-active')}
+                className={clsx('tab', sidebarTabIndex === 2 && 'tab-active')}
                 onClick={() => {
-                  setEditTabIndex(2)
+                  setSidebarTabIndex(2)
                 }}
               >
                 Experiences
               </button>
             </div>
             <div className='divider m-0' />
-            {editTabIndex === 0 ? (
+            {sidebarTabIndex === 0 ? (
               <div id='landing-sidebar' className='space-y-1'>
                 <div className='form-control w-full'>
                   <label className='label'>
@@ -443,9 +417,9 @@ export default function EditorPage() {
                       const file = ev.target.files?.item(0)
                       if (file) {
                         URL.revokeObjectURL(
-                          editor.app?.background_image_url ?? ''
+                          editorApp?.background_image_url ?? ''
                         )
-                        handleEditorAppChange('background_image_url')(
+                        handleEditorAppInputChange('background_image_url')(
                           URL.createObjectURL(file)
                         )
                         setAppLandingBGImgFile(file)
@@ -465,8 +439,8 @@ export default function EditorPage() {
                       ev.preventDefault()
                       const file = ev.target.files?.item(0)
                       if (file) {
-                        URL.revokeObjectURL(editor.app?.logo_image_url ?? '')
-                        handleEditorAppChange('logo_image_url')(
+                        URL.revokeObjectURL(editorApp?.logo_image_url ?? '')
+                        handleEditorAppInputChange('logo_image_url')(
                           URL.createObjectURL(file)
                         )
                         setAppLogoFile(file)
@@ -486,8 +460,8 @@ export default function EditorPage() {
                       ev.preventDefault()
                       const file = ev.target.files?.item(0)
                       if (file) {
-                        URL.revokeObjectURL(editor.app?.image_url ?? '')
-                        handleEditorAppChange('image_url')(
+                        URL.revokeObjectURL(editorApp?.image_url ?? '')
+                        handleEditorAppInputChange('image_url')(
                           URL.createObjectURL(file)
                         )
                         setAppLandingImgFile(file)
@@ -503,8 +477,8 @@ export default function EditorPage() {
                     type='text'
                     placeholder='Landing Text'
                     className='input-bordered input w-full'
-                    value={editor.app?.text ?? ''}
-                    onChange={handleEditorAppChange('text')}
+                    value={editorApp?.text ?? ''}
+                    onChange={handleEditorAppInputChange('text')}
                   />
                 </div>
                 <div className='form-control w-full'>
@@ -515,8 +489,8 @@ export default function EditorPage() {
                     type='text'
                     placeholder='Button Label'
                     className='input-bordered input w-full'
-                    value={editor.app?.button_text ?? 'Start'}
-                    onChange={handleEditorAppChange('button_text')}
+                    value={editorApp?.button_text ?? 'Start'}
+                    onChange={handleEditorAppInputChange('button_text')}
                   />
                 </div>
                 <div className='form-control w-full'>
@@ -526,13 +500,13 @@ export default function EditorPage() {
                   <HexColorPicker
                     className='color-picker'
                     style={{ width: '100%', height: 150 }}
-                    color={editor.app?.button_text_color ?? ''}
-                    onChange={handleEditorAppChange('button_text_color')}
+                    color={editorApp?.button_text_color ?? ''}
+                    onChange={handleEditorAppInputChange('button_text_color')}
                   />
                   <HexColorInput
                     className='input-bordered input input-sm mt-1 w-full'
-                    color={editor.app?.button_text_color ?? ''}
-                    onChange={handleEditorAppChange('button_text_color')}
+                    color={editorApp?.button_text_color ?? ''}
+                    onChange={handleEditorAppInputChange('button_text_color')}
                   />
                 </div>
                 <div className='form-control w-full'>
@@ -542,18 +516,22 @@ export default function EditorPage() {
                   <HexColorPicker
                     className='color-picker'
                     style={{ width: '100%', height: 150 }}
-                    color={editor.app?.button_background_color ?? ''}
-                    onChange={handleEditorAppChange('button_background_color')}
+                    color={editorApp?.button_background_color ?? ''}
+                    onChange={handleEditorAppInputChange(
+                      'button_background_color'
+                    )}
                   />
                   <HexColorInput
                     className='input-bordered input input-sm mt-1 w-full'
-                    color={editor.app?.button_background_color ?? ''}
-                    onChange={handleEditorAppChange('button_background_color')}
+                    color={editorApp?.button_background_color ?? ''}
+                    onChange={handleEditorAppInputChange(
+                      'button_background_color'
+                    )}
                   />
                 </div>
               </div>
             ) : null}
-            {editTabIndex === 1 ? (
+            {sidebarTabIndex === 1 ? (
               <div id='instruction-sidebar' className='space-y-1'>
                 <div className='form-control w-full'>
                   <label className='label'>
@@ -568,9 +546,9 @@ export default function EditorPage() {
                       const file = ev.target.files?.item(0)
                       if (file) {
                         URL.revokeObjectURL(
-                          editor.app?.instructions_image_url ?? ''
+                          editorApp?.instructions_image_url ?? ''
                         )
-                        handleEditorAppChange('instructions_image_url')(
+                        handleEditorAppInputChange('instructions_image_url')(
                           URL.createObjectURL(file)
                         )
                         setAppInstructionImgFile(file)
@@ -580,9 +558,9 @@ export default function EditorPage() {
                 </div>
               </div>
             ) : null}
-            {editTabIndex === 2 ? (
+            {sidebarTabIndex === 2 ? (
               <div id='experience-sidebar' className='space-y-1'>
-                {editor.experiences && editor.experiences.length > 0 ? (
+                {editorExperiences && editorExperiences.length > 0 ? (
                   <div className='form-control w-full'>
                     <select
                       className='select-bordered select'
@@ -592,7 +570,7 @@ export default function EditorPage() {
                       <option value='' disabled>
                         Pick an experience
                       </option>
-                      {editor.experiences.map((exp, index) => (
+                      {editorExperiences.map((exp, index) => (
                         <option key={index} value={index}>
                           {exp.name}
                         </option>
@@ -606,17 +584,20 @@ export default function EditorPage() {
                     disabled={createExp.isLoading}
                     onClick={handleExpCreate}
                   >
-                    New
+                    Add
                   </button>
                   <button
                     className='btn-warning btn w-full'
-                    disabled={removeExp.isLoading || currExpIndex === null}
+                    disabled={
+                      removeExp.isLoading || currEditingExperience === null
+                    }
                     onClick={handleExpRemove}
                   >
                     Remove
                   </button>
                 </div>
-                {editor.experiences.length > 0 && currExpIndex !== null ? (
+                {editorExperiences.length > 0 &&
+                currEditingExperience !== null ? (
                   <div
                     className='space-y-1 border-2 px-3 pb-3'
                     style={{
@@ -632,12 +613,12 @@ export default function EditorPage() {
                         type='text'
                         placeholder='Experience Name'
                         className='input-bordered input w-full'
-                        value={editor.experiences[currExpIndex].name}
-                        onChange={handleEditorExpChange(currExpIndex, 'name')}
+                        value={currEditingExperience.name}
+                        onChange={handleEditorExpInputChange('name')}
                       />
                     </div>
-                    {/* {editor.experiences[currExpIndex].transform &&
-                    editor.experiences[currExpIndex].transform?.length ? (
+                    {/* {editorExps[currExpIndex].transform &&
+                    editorExps[currExpIndex].transform?.length ? (
                       
                     ) : null} */}
 
@@ -651,17 +632,15 @@ export default function EditorPage() {
                         onChange={handleAssetSelect}
                       >
                         <option value='' disabled>
-                          {editor.experiences[currExpIndex].transform?.length
+                          {currEditingExperience.transform?.length
                             ? 'Pick an asset'
                             : 'Add and asset'}
                         </option>
-                        {editor.experiences[currExpIndex].transform?.map(
-                          (tr, index) => (
-                            <option key={index} value={index}>
-                              {tr.asset_name}
-                            </option>
-                          )
-                        )}
+                        {currEditingExperience.transform?.map((tr, index) => (
+                          <option key={index} value={index}>
+                            {tr.asset_name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -682,9 +661,8 @@ export default function EditorPage() {
                       </button>
                     </div>
 
-                    {currExpIndex !== null &&
-                    currAssetIndex !== null &&
-                    editor.experiences[currExpIndex].transform?.length ? (
+                    {currEditingAsset !== null &&
+                    currEditingExperience.transform?.length ? (
                       <div
                         className='border-2 px-3 pb-3'
                         style={{
@@ -700,42 +678,36 @@ export default function EditorPage() {
                             type='text'
                             // placeholder='Button Label'
                             className='input-bordered input w-full'
-                            value={
-                              editor.experiences[currExpIndex].transform![
-                                currAssetIndex
-                              ].asset_name
-                            }
+                            value={currEditingAsset.asset_name}
                             onChange={ev => {
                               ev.preventDefault()
-                              if (
-                                currExpIndex === null ||
-                                currAssetIndex === null
-                              ) {
-                                return
-                              }
-                              const exp = editor.experiences[currExpIndex]
-                              const transform = exp.transform
-                              if (transform) {
-                                const asset = transform[currAssetIndex]
-                                setEditor(prev => ({
-                                  ...prev,
-                                  experiences: [
-                                    ...prev.experiences.slice(0, currExpIndex),
-                                    {
-                                      ...exp,
-                                      transform: [
-                                        ...transform.slice(0, currAssetIndex),
-                                        {
-                                          ...asset,
-                                          asset_name: ev.target.value
-                                        },
-                                        ...transform.slice(currAssetIndex + 1)
-                                      ]
-                                    },
-                                    ...prev.experiences.slice(currExpIndex + 1)
-                                  ]
-                                }))
-                              }
+                              const value = ev.target.value
+                              setCurrAssetContent(
+                                prev => prev && { ...prev, asset_name: value }
+                              )
+                              // const exp = currEditingExperience
+                              // const transform = exp.transform
+                              // if (transform) {
+                              //   const asset = transform[currAssetIndex]
+                              //   setEditor(prev => ({
+                              //     ...prev,
+                              //     experiences: [
+                              //       ...prev.experiences.slice(0, currExpIndex),
+                              //       {
+                              //         ...exp,
+                              //         transform: [
+                              //           ...transform.slice(0, currAssetIndex),
+                              //           {
+                              //             ...asset,
+                              //             asset_name: ev.target.value
+                              //           },
+                              //           ...transform.slice(currAssetIndex + 1)
+                              //         ]
+                              //       },
+                              //       ...prev.experiences.slice(currExpIndex + 1)
+                              //     ]
+                              //   }))
+                              // }
                             }}
                           />
                         </div>
@@ -758,7 +730,7 @@ export default function EditorPage() {
               id='landing-view'
               className={clsx(
                 'flex h-full flex-col items-center justify-center',
-                editTabIndex === 0 ? 'block' : 'hidden'
+                sidebarTabIndex === 0 ? 'block' : 'hidden'
               )}
             >
               <div className='mockup-phone'>
@@ -767,16 +739,16 @@ export default function EditorPage() {
                   <div
                     className='phone-2 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
                     style={{
-                      backgroundImage: editor.app?.background_image_url
-                        ? `url(${editor.app.background_image_url})`
+                      backgroundImage: editorApp?.background_image_url
+                        ? `url(${editorApp.background_image_url})`
                         : undefined
                     }}
                   >
                     <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
-                      {editor.app?.logo_image_url ? (
+                      {editorApp?.logo_image_url ? (
                         <img
                           className='mx-auto max-h-full max-w-full rounded-lg'
-                          src={editor.app.logo_image_url}
+                          src={editorApp.logo_image_url}
                           alt='App Logo'
                         />
                       ) : (
@@ -786,10 +758,10 @@ export default function EditorPage() {
                       )}
                     </div>
                     <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
-                      {editor.app?.image_url ? (
+                      {editorApp?.image_url ? (
                         <img
                           className='mx-auto max-h-full max-w-full rounded-lg'
-                          src={editor.app.image_url}
+                          src={editorApp.image_url}
                           alt='App Landing Image'
                         />
                       ) : (
@@ -797,8 +769,8 @@ export default function EditorPage() {
                           Landing Image
                         </div>
                       )}
-                      {editor.app?.text ? (
-                        <div className='text-center'>{editor.app.text}</div>
+                      {editorApp?.text ? (
+                        <div className='text-center'>{editorApp.text}</div>
                       ) : (
                         <div className='mx-auto flex max-w-full flex-col items-center justify-center rounded-lg border border-base-content'>
                           Landing Text
@@ -809,11 +781,11 @@ export default function EditorPage() {
                       <div
                         className='mx-auto flex h-full max-w-full flex-col items-center justify-center rounded-lg'
                         style={{
-                          backgroundColor: editor.app?.button_background_color,
-                          color: editor.app?.button_text_color
+                          backgroundColor: editorApp?.button_background_color,
+                          color: editorApp?.button_text_color
                         }}
                       >
-                        {editor.app?.button_text}
+                        {editorApp?.button_text}
                       </div>
                     </div>
                   </div>
@@ -824,7 +796,7 @@ export default function EditorPage() {
               id='instruction-view'
               className={clsx(
                 'flex h-full flex-col items-center justify-center',
-                editTabIndex === 1 ? 'block' : 'hidden'
+                sidebarTabIndex === 1 ? 'block' : 'hidden'
               )}
             >
               <div className='mockup-phone'>
@@ -833,8 +805,8 @@ export default function EditorPage() {
                   <div
                     className='phone-2 artboard artboard-demo relative space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
                     style={{
-                      backgroundImage: editor.app?.background_image_url
-                        ? `url(${editor.app.background_image_url})`
+                      backgroundImage: editorApp?.background_image_url
+                        ? `url(${editorApp.background_image_url})`
                         : undefined
                     }}
                   >
@@ -843,10 +815,10 @@ export default function EditorPage() {
                         Instructions
                       </div>
                       <div className='aspect-square h-auto w-11/12 max-w-xs'>
-                        {editor.app?.instructions_image_url ? (
+                        {editorApp?.instructions_image_url ? (
                           <img
                             className='mx-auto max-h-full max-w-full rounded-lg'
-                            src={editor.app?.instructions_image_url}
+                            src={editorApp?.instructions_image_url}
                             alt='Instruction Image'
                           />
                         ) : (
@@ -864,7 +836,7 @@ export default function EditorPage() {
               id='experience-view'
               className={clsx(
                 'fixed h-full w-full',
-                editTabIndex === 2 ? 'block' : 'hidden'
+                sidebarTabIndex === 2 ? 'block' : 'hidden'
               )}
               {...getRootProps()}
             >
