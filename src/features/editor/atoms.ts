@@ -2,7 +2,7 @@ import { App } from 'features/application/api'
 import { ContentTransform, Experience } from 'features/experience/api'
 import { atom } from 'jotai'
 import { focusAtom } from 'jotai-optics'
-import type { OpticFor } from 'optics-ts'
+import { OpticFor } from 'optics-ts'
 import { SetStateAction } from 'react'
 
 export type EditorState = {

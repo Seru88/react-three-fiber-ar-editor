@@ -18,9 +18,12 @@ export type Experience = {
 }
 
 export type ContentTransform = {
-  asset_name: string
+  name: string
   asset_uuid: string
+  click_action?: { target: string; type: string }
+  content_type: string
   instance_id: string
+  playback_settings?: { autoplay?: boolean; loop?: boolean; volume: number }
   position: number[]
   quaternion: number[]
   rotation: number[]

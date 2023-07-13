@@ -209,8 +209,9 @@ export default function EditorPage() {
                 transform: [
                   ...(prev.transform ?? []),
                   {
-                    asset_name: asset.name,
+                    name: asset.name,
                     asset_uuid: asset.uuid,
+                    content_type: asset.content_type,
                     instance_id: generateInstanceID(),
                     position: [0, 0, 0],
                     quaternion: [0, 0, 0, 1],
@@ -617,11 +618,6 @@ export default function EditorPage() {
                         onChange={handleEditorExpInputChange('name')}
                       />
                     </div>
-                    {/* {editorExps[currExpIndex].transform &&
-                    editorExps[currExpIndex].transform?.length ? (
-                      
-                    ) : null} */}
-
                     <div className='form-control w-full'>
                       <label className='label'>
                         <span className='label-text'>Assets</span>
@@ -638,7 +634,7 @@ export default function EditorPage() {
                         </option>
                         {currEditingExperience.transform?.map((tr, index) => (
                           <option key={index} value={index}>
-                            {tr.asset_name}
+                            {tr.name}
                           </option>
                         ))}
                       </select>
@@ -654,7 +650,7 @@ export default function EditorPage() {
                       </button>
                       <button
                         className='btn-warning btn-sm btn w-full'
-                        // disabled={removeExp.isLoading || currExpIndex === null}
+                        disabled={currEditingAsset === null}
                         // onClick={handleExpRemove}
                       >
                         Remove
@@ -664,7 +660,7 @@ export default function EditorPage() {
                     {currEditingAsset !== null &&
                     currEditingExperience.transform?.length ? (
                       <div
-                        className='border-2 px-3 pb-3'
+                        className='space-y-1 border-2 px-3 pb-3'
                         style={{
                           borderRadius: 'var(--rounded-btn, 0.5rem)',
                           borderColor: 'hsl(var(--bc) / 0.1)'
@@ -676,40 +672,292 @@ export default function EditorPage() {
                           </label>
                           <input
                             type='text'
-                            // placeholder='Button Label'
                             className='input-bordered input w-full'
-                            value={currEditingAsset.asset_name}
+                            value={currEditingAsset.name}
                             onChange={ev => {
                               ev.preventDefault()
                               const value = ev.target.value
                               setCurrAssetContent(
-                                prev => prev && { ...prev, asset_name: value }
+                                prev => prev && { ...prev, name: value }
                               )
-                              // const exp = currEditingExperience
-                              // const transform = exp.transform
-                              // if (transform) {
-                              //   const asset = transform[currAssetIndex]
-                              //   setEditor(prev => ({
-                              //     ...prev,
-                              //     experiences: [
-                              //       ...prev.experiences.slice(0, currExpIndex),
-                              //       {
-                              //         ...exp,
-                              //         transform: [
-                              //           ...transform.slice(0, currAssetIndex),
-                              //           {
-                              //             ...asset,
-                              //             asset_name: ev.target.value
-                              //           },
-                              //           ...transform.slice(currAssetIndex + 1)
-                              //         ]
-                              //       },
-                              //       ...prev.experiences.slice(currExpIndex + 1)
-                              //     ]
-                              //   }))
-                              // }
                             }}
                           />
+                        </div>
+                        <div className='form-control w-full'>
+                          <label className='label'>
+                            <span className='label-text'>Position</span>
+                          </label>
+                          <div className='join w-full space-x-1'>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                X
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.position[0]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          position: [
+                                            parseFloat(ev.target.value),
+                                            ...prev.position.slice(1)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Y
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.position[1]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          position: [
+                                            ...prev.position.slice(0, 1),
+                                            parseFloat(ev.target.value),
+                                            ...prev.position.slice(2)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Z
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.position[2]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          position: [
+                                            ...prev.position.slice(0, 2),
+                                            parseFloat(ev.target.value)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopRightRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomRightRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className='form-control w-full'>
+                          <label className='label'>
+                            <span className='label-text'>Rotation</span>
+                          </label>
+                          <div className='join w-full space-x-1'>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                X
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.rotation[0]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          rotation: [
+                                            parseFloat(ev.target.value),
+                                            ...prev.rotation.slice(1)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Y
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.rotation[1]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          rotation: [
+                                            ...prev.rotation.slice(0, 1),
+                                            parseFloat(ev.target.value),
+                                            ...prev.rotation.slice(2)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Z
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.rotation[2]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          rotation: [
+                                            ...prev.rotation.slice(0, 2),
+                                            parseFloat(ev.target.value)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopRightRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomRightRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className='form-control w-full'>
+                          <label className='label'>
+                            <span className='label-text'>Scale</span>
+                          </label>
+                          <div className='join w-full space-x-1'>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                X
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.scale[0]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          scale: [
+                                            parseFloat(ev.target.value),
+                                            ...prev.scale.slice(1)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomLeftRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Y
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.scale[1]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          scale: [
+                                            ...prev.scale.slice(0, 1),
+                                            parseFloat(ev.target.value),
+                                            ...prev.scale.slice(2)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className='indicator w-1/3'>
+                              <span className='indicator-center indicator-bottom badge indicator-item'>
+                                Z
+                              </span>
+                              <div>
+                                <input
+                                  className='input-bordered input join-item w-full'
+                                  type='number'
+                                  value={currEditingAsset.scale[2]}
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          scale: [
+                                            ...prev.scale.slice(0, 2),
+                                            parseFloat(ev.target.value)
+                                          ]
+                                        }
+                                    )
+                                  }}
+                                  style={{
+                                    borderTopRightRadius:
+                                      'var(--rounded-btn, 0.5rem)',
+                                    borderBottomRightRadius:
+                                      'var(--rounded-btn, 0.5rem)'
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ) : null}
