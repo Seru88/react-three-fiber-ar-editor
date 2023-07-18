@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAtom } from 'jotai'
 
-import { createApp, CreateAppRequest, updateApp } from './api'
+import { createApp, CreateAppRequest, deleteApp, updateApp } from './api'
 import { appQueryAtom, appsQueryAtom } from './atoms'
 
 export function useAppMutation() {
@@ -32,5 +32,12 @@ export function useAppMutation() {
     }
   )
 
-  return { create, update }
+  const remove = useMutation(deleteApp, {
+    onSuccess: () => {
+      // queryClient.invalidateQueries(['app', appQuery])
+      queryClient.invalidateQueries(['apps', appsQuery])
+    }
+  })
+
+  return { create, update, remove }
 }

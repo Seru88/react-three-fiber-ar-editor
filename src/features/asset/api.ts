@@ -11,6 +11,7 @@ export type Asset = {
   name: string
   original_height: number
   original_width: number
+  url: string // if image, max width is 512
   user_id: number
   uuid: string
 }

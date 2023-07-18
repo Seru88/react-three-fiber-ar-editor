@@ -13,3 +13,7 @@
   border-top-left-radius: 0px;
   border-top-right-radius: 0px;
 }
+
+#editor-content {
+  width: calc(100% - 384px);
+}

@@ -12,11 +12,12 @@ import { createPresignedAsset } from 'features/asset/api'
 import useAuth from 'features/auth/useAuth'
 import {
   currEditingAssetAtom,
-  currEditingAssetIndexAtom,
+  currEditingAssetInstanceIDAtom,
   currEditingExperienceAtom,
   currEditingExperienceIndexAtom,
   editorAppAtom,
-  editorExperiencesAtom
+  editorExperiencesAtom,
+  editorGizmoAtom
 } from 'features/editor/atoms'
 import { Experience } from 'features/experience/api'
 import {
@@ -38,12 +39,17 @@ import {
 import { HexColorInput, HexColorPicker } from 'react-colorful'
 import { FileRejection, useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
+import { MathUtils } from 'three'
 
 const MEGABYTE = 1000000
 
 export default function EditorPage() {
   const { user } = useAuth()
-  const { create: createApp, update: updateApp } = useAppMutation()
+  const {
+    create: createApp,
+    update: updateApp,
+    remove: removeApp
+  } = useAppMutation()
   const {
     create: createExp,
     update: updateExp,
@@ -71,11 +77,14 @@ export default function EditorPage() {
   const [currExpIndex, setCurrExpIndex] = useAtom(
     currEditingExperienceIndexAtom
   )
-  const [currAssetIndex, setCurrAssetIndex] = useAtom(currEditingAssetIndexAtom)
+  const [currAssetIndex, setCurrAssetIndex] = useAtom(
+    currEditingAssetInstanceIDAtom
+  )
   const [currEditingExperience, setCurrEditingExperience] = useAtom(
     currEditingExperienceAtom
   )
   const [currEditingAsset, setCurrAssetContent] = useAtom(currEditingAssetAtom)
+  const [editorGizmo, setEditorGizmo] = useAtom(editorGizmoAtom)
 
   // UI
   const [sidebarTabIndex, setSidebarTabIndex] = useState(0)
@@ -84,6 +93,11 @@ export default function EditorPage() {
   const [appLogoFile, setAppLogoFile] = useState<File>()
   const [appLandingImgFile, setAppLandingImgFile] = useState<File>()
   const [appInstructionImgFile, setAppInstructionImgFile] = useState<File>()
+
+  const handleAppLoad = (app: App) => () => {
+    setAppQuery(app.id)
+    setExpsQuery({ app_id: app.id })
+  }
 
   const handleAppCreate = async () => {
     await createApp.mutateAsync({
@@ -95,9 +109,16 @@ export default function EditorPage() {
     })
   }
 
-  const handleAppLoad = (app: App) => () => {
-    setAppQuery(app.id)
-    setExpsQuery({ app_id: app.id })
+  const handleAppRemove = () => {
+    if (editorApp === null) return
+    toast.promise(removeApp.mutateAsync(editorApp.id), {
+      loading: 'Deleting...',
+      success: () => {
+        setEditorApp(null)
+        return 'Deleted!'
+      },
+      error: err => (err as Error).message
+    })
   }
 
   const handleEditorAppInputChange =
@@ -149,11 +170,11 @@ export default function EditorPage() {
 
   const handleAssetSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
     ev.preventDefault()
-    const index = parseInt(ev.target.value)
-    setCurrAssetIndex(index)
+    const value = ev.target.value
+    setCurrAssetIndex(value)
   }
 
-  const save = async () => {
+  const saveApp = async () => {
     if (editorApp) {
       const appUpdate: Partial<CreateAppRequest> = {
         background_image: appLandingBGImgFile,
@@ -167,20 +188,30 @@ export default function EditorPage() {
         text: editorApp.text
       }
       await updateApp.mutateAsync(appUpdate)
-      const tasks = editorExperiences.map(eExp => {
-        return updateExp.mutateAsync({
-          id: eExp.id,
-          request: {
-            name: eExp.name,
-            // marker_image: undefined,
-            app_id: editorApp.id,
-            asset_uuids: eExp.asset_uuids,
-            transform: eExp.transform ?? []
-          }
-        })
-      })
-      await Promise.all(tasks)
     }
+  }
+
+  // * Consider finding way to only save currently editing experience.
+  const saveExperiences = async () => {
+    if (editorApp === null) return
+    const tasks = editorExperiences.map(eExp => {
+      return updateExp.mutateAsync({
+        id: eExp.id,
+        request: {
+          name: eExp.name,
+          // marker_image: undefined,
+          app_id: editorApp.id,
+          asset_uuids: eExp.asset_uuids,
+          transform: eExp.transform ?? []
+        }
+      })
+    })
+    await Promise.all(tasks)
+  }
+
+  const save = async () => {
+    await saveApp()
+    await saveExperiences()
   }
 
   const handleSave = () => {
@@ -206,10 +237,12 @@ export default function EditorPage() {
             prev =>
               prev && {
                 ...prev,
+                asset_uuids: [...prev.asset_uuids, asset.uuid],
                 transform: [
                   ...(prev.transform ?? []),
                   {
                     name: asset.name,
+                    asset_url: asset.url,
                     asset_uuid: asset.uuid,
                     content_type: asset.content_type,
                     instance_id: generateInstanceID(),
@@ -279,7 +312,7 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (currExpIndex !== null) {
-      setCurrAssetIndex(null)
+      setCurrAssetIndex('')
     }
   }, [currExpIndex, setCurrAssetIndex])
 
@@ -348,7 +381,7 @@ export default function EditorPage() {
       ) : (
         <div className='flex h-full w-full'>
           <div className='h-full max-h-full w-96 overflow-y-auto overflow-x-hidden bg-base-200 px-5 py-2'>
-            <div className='mb-2'>
+            <div className='mb-2 space-y-1'>
               <div className='form-control w-full'>
                 <label className='label'>
                   <span className='label-text'>App Name</span>
@@ -356,7 +389,7 @@ export default function EditorPage() {
                 <input
                   type='text'
                   placeholder='App Name'
-                  className='input-bordered input w-full'
+                  className='input-bordered input input-sm w-full'
                   value={editorApp?.name ?? ''}
                   onChange={handleEditorAppInputChange('name')}
                 />
@@ -366,7 +399,7 @@ export default function EditorPage() {
                   <span className='label-text'>App Description</span>
                 </label>
                 <textarea
-                  className='textarea-bordered textarea w-full'
+                  className='textarea-bordered textarea textarea-sm w-full'
                   placeholder='App Description'
                   value={appDescription}
                   onChange={ev => {
@@ -374,6 +407,22 @@ export default function EditorPage() {
                     setAppDescriptionn(ev.target.value)
                   }}
                 />
+              </div>
+              <div className='grid w-full grid-cols-2 gap-1'>
+                <button
+                  className='btn-primary btn-sm btn w-full'
+                  disabled={updateApp.isLoading || updateExp.isLoading}
+                  onClick={handleSave}
+                >
+                  Save
+                </button>
+                <button
+                  className='btn-warning btn-sm btn w-full'
+                  disabled={removeApp.isLoading || editorApp === null}
+                  onClick={handleAppRemove}
+                >
+                  Delete
+                </button>
               </div>
             </div>
             <div className='tabs tabs-boxed justify-center'>
@@ -411,7 +460,7 @@ export default function EditorPage() {
                   </label>
                   <input
                     type='file'
-                    className='file-input-bordered file-input w-full'
+                    className='file-input-bordered file-input file-input-sm w-full'
                     accept='image/png, image/jpeg, image/jpg'
                     onChange={ev => {
                       ev.preventDefault()
@@ -434,7 +483,7 @@ export default function EditorPage() {
                   </label>
                   <input
                     type='file'
-                    className='file-input-bordered file-input w-full'
+                    className='file-input-bordered file-input file-input-sm w-full'
                     accept='image/png, image/jpeg, image/jpg'
                     onChange={ev => {
                       ev.preventDefault()
@@ -455,7 +504,7 @@ export default function EditorPage() {
                   </label>
                   <input
                     type='file'
-                    className='file-input-bordered file-input w-full'
+                    className='file-input-bordered file-input file-input-sm w-full'
                     accept='image/png, image/jpeg, image/jpg'
                     onChange={ev => {
                       ev.preventDefault()
@@ -477,7 +526,7 @@ export default function EditorPage() {
                   <input
                     type='text'
                     placeholder='Landing Text'
-                    className='input-bordered input w-full'
+                    className='input-bordered input input-sm w-full'
                     value={editorApp?.text ?? ''}
                     onChange={handleEditorAppInputChange('text')}
                   />
@@ -489,7 +538,7 @@ export default function EditorPage() {
                   <input
                     type='text'
                     placeholder='Button Label'
-                    className='input-bordered input w-full'
+                    className='input-bordered input btn-sm w-full'
                     value={editorApp?.button_text ?? 'Start'}
                     onChange={handleEditorAppInputChange('button_text')}
                   />
@@ -540,7 +589,7 @@ export default function EditorPage() {
                   </label>
                   <input
                     type='file'
-                    className='file-input-bordered file-input w-full'
+                    className='file-input-bordered file-input file-input-sm w-full'
                     accept='image/png, image/jpeg, image/jpg'
                     onChange={ev => {
                       ev.preventDefault()
@@ -561,34 +610,34 @@ export default function EditorPage() {
             ) : null}
             {sidebarTabIndex === 2 ? (
               <div id='experience-sidebar' className='space-y-1'>
-                {editorExperiences && editorExperiences.length > 0 ? (
-                  <div className='form-control w-full'>
-                    <select
-                      className='select-bordered select'
-                      value={currExpIndex ?? ''}
-                      onChange={handleExpSelect}
-                    >
-                      <option value='' disabled>
-                        Pick an experience
+                <div className='form-control w-full'>
+                  <select
+                    className='select-bordered select select-sm'
+                    value={currExpIndex ?? ''}
+                    onChange={handleExpSelect}
+                  >
+                    <option value='' disabled>
+                      {editorExperiences.length === 0
+                        ? 'Add an experience'
+                        : 'Pick an experience'}
+                    </option>
+                    {editorExperiences.map((exp, index) => (
+                      <option key={index} value={index}>
+                        {exp.name}
                       </option>
-                      {editorExperiences.map((exp, index) => (
-                        <option key={index} value={index}>
-                          {exp.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
+                    ))}
+                  </select>
+                </div>
                 <div className='grid w-full grid-cols-2 gap-1'>
                   <button
-                    className='btn-primary btn w-full'
+                    className='btn-primary btn-sm btn w-full'
                     disabled={createExp.isLoading}
                     onClick={handleExpCreate}
                   >
                     Add
                   </button>
                   <button
-                    className='btn-warning btn w-full'
+                    className='btn-warning btn-sm btn w-full'
                     disabled={
                       removeExp.isLoading || currEditingExperience === null
                     }
@@ -600,9 +649,9 @@ export default function EditorPage() {
                 {editorExperiences.length > 0 &&
                 currEditingExperience !== null ? (
                   <div
-                    className='space-y-1 border-2 px-3 pb-3'
+                    className='card space-y-1 border-2 px-3 pb-3'
                     style={{
-                      borderRadius: 'var(--rounded-btn, 0.5rem)',
+                      // borderRadius: 'var(--rounded-btn, 0.5rem)',
                       borderColor: 'hsl(var(--bc) / 0.1)'
                     }}
                   >
@@ -613,7 +662,7 @@ export default function EditorPage() {
                       <input
                         type='text'
                         placeholder='Experience Name'
-                        className='input-bordered input w-full'
+                        className='input-bordered input input-sm w-full'
                         value={currEditingExperience.name}
                         onChange={handleEditorExpInputChange('name')}
                       />
@@ -623,8 +672,8 @@ export default function EditorPage() {
                         <span className='label-text'>Assets</span>
                       </label>
                       <select
-                        className='select-bordered select'
-                        value={currAssetIndex ?? ''}
+                        className='select-bordered select select-sm'
+                        value={currAssetIndex}
                         onChange={handleAssetSelect}
                       >
                         <option value='' disabled>
@@ -632,8 +681,8 @@ export default function EditorPage() {
                             ? 'Pick an asset'
                             : 'Add and asset'}
                         </option>
-                        {currEditingExperience.transform?.map((tr, index) => (
-                          <option key={index} value={index}>
+                        {currEditingExperience.transform?.map(tr => (
+                          <option key={tr.instance_id} value={tr.instance_id}>
                             {tr.name}
                           </option>
                         ))}
@@ -660,9 +709,9 @@ export default function EditorPage() {
                     {currEditingAsset !== null &&
                     currEditingExperience.transform?.length ? (
                       <div
-                        className='space-y-1 border-2 px-3 pb-3'
+                        className='card space-y-1 border-2 px-3 pb-3'
                         style={{
-                          borderRadius: 'var(--rounded-btn, 0.5rem)',
+                          // borderRadius: 'var(--rounded-btn, 0.5rem)',
                           borderColor: 'hsl(var(--bc) / 0.1)'
                         }}
                       >
@@ -672,7 +721,7 @@ export default function EditorPage() {
                           </label>
                           <input
                             type='text'
-                            className='input-bordered input w-full'
+                            className='input-bordered input input-sm w-full'
                             value={currEditingAsset.name}
                             onChange={ev => {
                               ev.preventDefault()
@@ -689,22 +738,27 @@ export default function EditorPage() {
                           </label>
                           <div className='join w-full space-x-1'>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                X
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                x
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[0]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.position[0]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           position: [
-                                            parseFloat(ev.target.value),
-                                            ...prev.position.slice(1)
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.position[1],
+                                            prev.position[2]
                                           ]
                                         }
                                     )
@@ -719,23 +773,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Y
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                y
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[1]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.position[1]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           position: [
-                                            ...prev.position.slice(0, 1),
-                                            parseFloat(ev.target.value),
-                                            ...prev.position.slice(2)
+                                            prev.position[0],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.position[2]
                                           ]
                                         }
                                     )
@@ -744,22 +802,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Z
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                z
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[2]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.position[2]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           position: [
-                                            ...prev.position.slice(0, 2),
-                                            parseFloat(ev.target.value)
+                                            prev.position[0],
+                                            prev.position[1],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            )
                                           ]
                                         }
                                     )
@@ -781,22 +844,27 @@ export default function EditorPage() {
                           </label>
                           <div className='join w-full space-x-1'>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                X
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                x
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.rotation[0]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.rotation[0]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           rotation: [
-                                            parseFloat(ev.target.value),
-                                            ...prev.rotation.slice(1)
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.rotation[1],
+                                            prev.rotation[2]
                                           ]
                                         }
                                     )
@@ -811,23 +879,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Y
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                y
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.rotation[1]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.rotation[1]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           rotation: [
-                                            ...prev.rotation.slice(0, 1),
-                                            parseFloat(ev.target.value),
-                                            ...prev.rotation.slice(2)
+                                            prev.rotation[0],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.rotation[2]
                                           ]
                                         }
                                     )
@@ -836,22 +908,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Z
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                z
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.rotation[2]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.rotation[2]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           rotation: [
-                                            ...prev.rotation.slice(0, 2),
-                                            parseFloat(ev.target.value)
+                                            prev.rotation[0],
+                                            prev.rotation[1],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            )
                                           ]
                                         }
                                     )
@@ -873,22 +950,27 @@ export default function EditorPage() {
                           </label>
                           <div className='join w-full space-x-1'>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                X
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                x
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[0]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.scale[0]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           scale: [
-                                            parseFloat(ev.target.value),
-                                            ...prev.scale.slice(1)
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.scale[1],
+                                            prev.scale[2]
                                           ]
                                         }
                                     )
@@ -903,23 +985,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Y
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                y
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[1]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.scale[1]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           scale: [
-                                            ...prev.scale.slice(0, 1),
-                                            parseFloat(ev.target.value),
-                                            ...prev.scale.slice(2)
+                                            prev.scale[0],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            ),
+                                            prev.scale[2]
                                           ]
                                         }
                                     )
@@ -928,22 +1014,27 @@ export default function EditorPage() {
                               </div>
                             </div>
                             <div className='indicator w-1/3'>
-                              <span className='indicator-center indicator-bottom badge indicator-item'>
-                                Z
+                              <span className='indicator-center indicator-bottom badge indicator-item h-auto px-2 text-xs uppercase'>
+                                z
                               </span>
                               <div>
                                 <input
-                                  className='input-bordered input join-item w-full'
+                                  className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[2]}
+                                  value={MathUtils.radToDeg(
+                                    currEditingAsset.scale[2]
+                                  )}
                                   onChange={ev => {
                                     setCurrAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
                                           scale: [
-                                            ...prev.scale.slice(0, 2),
-                                            parseFloat(ev.target.value)
+                                            prev.scale[0],
+                                            prev.scale[1],
+                                            MathUtils.degToRad(
+                                              parseFloat(ev.target.value)
+                                            )
                                           ]
                                         }
                                     )
@@ -966,14 +1057,47 @@ export default function EditorPage() {
               </div>
             ) : null}
           </div>
-          <div className='relative h-full flex-grow text-base-content'>
-            <button
-              className='btn-primary btn-sm btn absolute left-2 top-2 z-40'
-              disabled={updateApp.isLoading || updateExp.isLoading}
-              onClick={handleSave}
-            >
-              Save
-            </button>
+          <div
+            id='editor-content'
+            className='relative h-full text-base-content'
+          >
+            {sidebarTabIndex === 2 ? (
+              <div className='join absolute left-2 top-2 z-40'>
+                <button
+                  className={clsx(
+                    'btn-sm join-item btn',
+                    editorGizmo === 'translate' && 'btn-primary'
+                  )}
+                  onClick={() => {
+                    setEditorGizmo('translate')
+                  }}
+                >
+                  Move
+                </button>
+                <button
+                  className={clsx(
+                    'btn-sm join-item btn',
+                    editorGizmo === 'rotate' && 'btn-primary'
+                  )}
+                  onClick={() => {
+                    setEditorGizmo('rotate')
+                  }}
+                >
+                  Rotate
+                </button>
+                <button
+                  className={clsx(
+                    'btn-sm join-item btn',
+                    editorGizmo === 'scale' && 'btn-primary'
+                  )}
+                  onClick={() => {
+                    setEditorGizmo('scale')
+                  }}
+                >
+                  Scale
+                </button>
+              </div>
+            ) : null}
             <div
               id='landing-view'
               className={clsx(
@@ -985,7 +1109,7 @@ export default function EditorPage() {
                 <div className='camera'></div>
                 <div className='display'>
                   <div
-                    className='phone-2 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
+                    className='phone-4 artboard artboard-demo relative justify-start space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
                     style={{
                       backgroundImage: editorApp?.background_image_url
                         ? `url(${editorApp.background_image_url})`
@@ -1051,7 +1175,7 @@ export default function EditorPage() {
                 <div className='camera'></div>
                 <div className='display'>
                   <div
-                    className='phone-2 artboard artboard-demo relative space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
+                    className='phone-4 artboard artboard-demo relative space-y-4 bg-cover bg-center bg-no-repeat px-4 py-10'
                     style={{
                       backgroundImage: editorApp?.background_image_url
                         ? `url(${editorApp.background_image_url})`
@@ -1083,7 +1207,7 @@ export default function EditorPage() {
             <div
               id='experience-view'
               className={clsx(
-                'fixed h-full w-full',
+                'h-full w-full',
                 sidebarTabIndex === 2 ? 'block' : 'hidden'
               )}
               {...getRootProps()}
@@ -1092,7 +1216,10 @@ export default function EditorPage() {
               {isDragActive ? (
                 <FileUploadBackdrop>Drag n' drop file here.</FileUploadBackdrop>
               ) : null}
-              <ExperienceScene mode='editor' />
+              <ExperienceScene
+                mode='editor'
+                experience={currEditingExperience}
+              />
             </div>
           </div>
         </div>

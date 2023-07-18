@@ -12,9 +12,14 @@ export type EditorState = {
 
 export const editorAtom = atom<EditorState>({ app: null, experiences: [] })
 
+export const editorGizmoAtom = atom<'translate' | 'rotate' | 'scale' | null>(
+  'translate'
+)
+
+// * Consider using the experience's UUID instead.
 export const currEditingExperienceIndexAtom = atom<number | null>(null)
 
-export const currEditingAssetIndexAtom = atom<number | null>(null)
+export const currEditingAssetInstanceIDAtom = atom('')
 
 export const editorAppAtom = focusAtom<EditorState, App | null, void>(
   editorAtom,
@@ -45,7 +50,7 @@ export const currEditingExperienceAtom = atom(
     set(editorExperiencesAtom, update)
     if (newValue === null) {
       set(currEditingExperienceIndexAtom, null)
-      set(currEditingAssetIndexAtom, null)
+      set(currEditingAssetInstanceIDAtom, '')
     }
   }
 )
@@ -53,30 +58,37 @@ export const currEditingExperienceAtom = atom(
 export const currEditingAssetAtom = atom(
   get => {
     const currExp = get(currEditingExperienceAtom)
-    const assetIndex = get(currEditingAssetIndexAtom)
-    if (currExp === null || assetIndex === null) return null
+    const currAssetInstanceID = get(currEditingAssetInstanceIDAtom)
+    if (currExp === null || currAssetInstanceID === '') return null
     const contents = currExp.transform
     if (!contents?.length) return null
-    return contents[assetIndex]
+    return contents.find(c => c.instance_id === currAssetInstanceID) ?? null
   },
   (get, set, action: SetStateAction<ContentTransform | null>) => {
     const currExp = get(currEditingExperienceAtom)
-    const assetIndex = get(currEditingAssetIndexAtom)
-    if (currExp === null || assetIndex === null) return
+    const currAssetInstanceID = get(currEditingAssetInstanceIDAtom)
+    if (currExp === null || currAssetInstanceID === '') return
     const contents = currExp.transform
     if (!contents?.length) return
+    const currAssetIndex = contents.findIndex(
+      c => c.instance_id === currAssetInstanceID
+    )
+    if (currAssetIndex < 0) return
     const newValue =
-      typeof action === 'function' ? action(contents[assetIndex]) : action
+      typeof action === 'function' ? action(contents[currAssetIndex]) : action
     const update = newValue
       ? [
-          ...contents.slice(0, assetIndex),
+          ...contents.slice(0, currAssetIndex),
           newValue,
-          ...contents.slice(assetIndex + 1)
+          ...contents.slice(currAssetIndex + 1)
         ]
-      : [...contents.slice(0, assetIndex), ...contents.slice(assetIndex + 1)]
+      : [
+          ...contents.slice(0, currAssetIndex),
+          ...contents.slice(currAssetIndex + 1)
+        ]
     set(currEditingExperienceAtom, { ...currExp, transform: update })
     if (newValue === null) {
-      set(currEditingAssetIndexAtom, null)
+      set(currEditingAssetInstanceIDAtom, '')
     }
   }
 )

@@ -7,100 +7,98 @@ import {
   useTexture,
   useVideoTexture
 } from '@react-three/drei'
-import { useSetAtom } from 'jotai'
+import { useAtom } from 'jotai'
 import { FC, memo, useEffect } from 'react'
 import { DoubleSide, MeshStandardMaterial } from 'three'
 
-import { currentContentAtom, SceneAssetContentState } from './atoms'
 import { getSceneObjectParentByName } from './utils'
+import { ContentTransform } from './api'
+import { currEditingAssetInstanceIDAtom } from 'features/editor/atoms'
 
 type Props = {
-  content: SceneAssetContentState
+  content: ContentTransform
 }
 
-const ModelContentSceneObject: FC<Props> = memo(
-  ({ content: { src, instanceID } }) => {
-    return (
-      <Resize>
-        <Gltf src={src} name={instanceID} />
-      </Resize>
-    )
-  }
-)
+const ModelContentSceneObject: FC<Props> = memo(({ content }) => {
+  if (!content.asset_url) return null
+  return (
+    <Resize>
+      <Gltf src={content.asset_url} name={content.instance_id} />
+    </Resize>
+  )
+})
 
-const TextureContentSceneObject: FC<Props> = memo(
-  ({ content: { src, instanceID } }) => {
-    const texture = useTexture(src)
-    return (
-      <Resize>
-        <Image
-          scale={[texture.image.width, texture.image.height]}
-          name={`${instanceID}`}
-          texture={texture}
-          transparent
-          ref={mesh => {
-            if (mesh) {
-              const material = mesh.material as MeshStandardMaterial
-              material.side = DoubleSide
-            }
-          }}
-        />
-      </Resize>
-    )
-  }
-)
+const ImageContentSceneObject: FC<Props> = memo(({ content }) => {
+  const texture = useTexture(content.asset_url ?? '')
+  return (
+    <Resize>
+      <Image
+        scale={[texture.image.width, texture.image.height]}
+        name={`${content.instance_id}`}
+        texture={texture}
+        transparent
+        ref={mesh => {
+          if (mesh) {
+            const material = mesh.material as MeshStandardMaterial
+            material.side = DoubleSide
+          }
+        }}
+      />
+    </Resize>
+  )
+})
 
-const VideoContentSceneObject: FC<Props> = memo(
-  ({ content: { src, instanceID } }) => {
-    const texture = useVideoTexture(src, {
-      muted: true,
-      start: true
-    })
-    return (
-      <Resize>
-        <mesh
-          name={`${instanceID}`}
-          scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
-        >
-          <planeGeometry />
-          <meshBasicMaterial
-            map={texture}
-            toneMapped={false}
-            side={DoubleSide}
-          />
-        </mesh>
-      </Resize>
-    )
-  }
-)
+const VideoContentSceneObject: FC<Props> = memo(({ content }) => {
+  const texture = useVideoTexture(content.asset_url ?? '', {
+    muted: true,
+    start: true
+  })
+  return (
+    <Resize>
+      <mesh
+        name={`${content.instance_id}`}
+        scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
+      >
+        <planeGeometry />
+        <meshBasicMaterial map={texture} toneMapped={false} side={DoubleSide} />
+      </mesh>
+    </Resize>
+  )
+})
 
-const AssetContentSceneObject: FC<Props> = memo(({ content }) => {
-  const setCurrentContentAtom = useSetAtom(currentContentAtom)
+const ContentSceneObject: FC<Props> = memo(({ content }) => {
+  const [, setEditingAssetInstanceID] = useAtom(currEditingAssetInstanceIDAtom)
+
   const selected = useSelect().find(mesh => {
-    if (mesh.name !== content.instanceID) {
-      return Boolean(getSceneObjectParentByName(mesh, content.instanceID))
+    if (mesh.name !== content.instance_id) {
+      return Boolean(getSceneObjectParentByName(mesh, content.instance_id))
     }
-    return mesh.name === content.instanceID
+    return mesh.name === content.instance_id
   })
 
   useEffect(() => {
-    setCurrentContentAtom(selected ? content.instanceID : null)
-  }, [selected, setCurrentContentAtom, content.instanceID])
+    setEditingAssetInstanceID(selected ? content.instance_id : '')
+  }, [selected, content.instance_id, setEditingAssetInstanceID])
 
   return (
-    <Center name={`${content.instanceID}-bound`} top>
-      {content.type === 'audio' ? null : null}
-      {content.type === '3d' ? (
-        <ModelContentSceneObject content={content} />
+    <Center
+      name={`${content.instance_id}-bound`}
+      top
+      position={content.position}
+      rotation={content.rotation}
+      scale={content.scale}
+    >
+      {content.content_type.includes('image') ? (
+        <ImageContentSceneObject content={content} />
       ) : null}
-      {content.type === 'image' ? (
-        <TextureContentSceneObject content={content} />
-      ) : null}
-      {content.type === 'video' ? (
+      {content.content_type.includes('video') ? (
         <VideoContentSceneObject content={content} />
+      ) : null}
+      {content.content_type === 'model/gltf-binary' ? (
+        <ModelContentSceneObject content={content} />
       ) : null}
     </Center>
   )
 })
 
-export default AssetContentSceneObject
+export default ContentSceneObject

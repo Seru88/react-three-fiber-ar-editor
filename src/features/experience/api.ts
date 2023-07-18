@@ -19,15 +19,16 @@ export type Experience = {
 
 export type ContentTransform = {
   name: string
+  asset_url?: string // Used in client only
   asset_uuid: string
   click_action?: { target: string; type: string }
   content_type: string
-  instance_id: string
+  instance_id: string // Used in client only
   playback_settings?: { autoplay?: boolean; loop?: boolean; volume: number }
-  position: number[]
-  quaternion: number[]
-  rotation: number[]
-  scale: number[]
+  position: [x: number, y: number, z: number]
+  quaternion: [x: number, y: number, z: number, w: number]
+  rotation: [x: number, y: number, z: number]
+  scale: [x: number, y: number, z: number]
 }
 
 export type CreateExperienceRequest = {
