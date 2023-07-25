@@ -17,7 +17,7 @@ const themes = [
   // 'corporate',
   // 'synthwave',
   // 'retro',
-  // 'cyberpunk',
+  'cyberpunk',
   // 'valentine',
   // 'halloween',
   'garden',

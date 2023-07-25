@@ -24,6 +24,7 @@ const SelectedSceneObjectTransformControls: FC = () => {
         const pos = obj.position.toArray() as [x: number, y: number, z: number]
         const rot = obj.rotation.toArray() as [x: number, y: number, z: number]
         const scl = obj.scale.toArray() as [x: number, y: number, z: number]
+        rot.pop()
         setCurrAsset(
           prev =>
             prev && {

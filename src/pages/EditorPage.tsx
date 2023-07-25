@@ -19,7 +19,7 @@ import {
   editorExperiencesAtom,
   editorGizmoAtom
 } from 'features/editor/atoms'
-import { Experience } from 'features/experience/api'
+import { ContentTransform, Experience } from 'features/experience/api'
 import {
   experiencesAtom,
   experiencesQueryAtom
@@ -31,6 +31,7 @@ import { useAtom } from 'jotai'
 import {
   ChangeEvent,
   FC,
+  MouseEvent,
   PropsWithChildren,
   useCallback,
   useEffect,
@@ -42,6 +43,10 @@ import toast from 'react-hot-toast'
 import { MathUtils } from 'three'
 
 const MEGABYTE = 1000000
+
+function numerify<T>(values: unknown[]) {
+  return values.map(v => parseFloat(v as string)) as T
+}
 
 export default function EditorPage() {
   const { user } = useAuth()
@@ -168,10 +173,70 @@ export default function EditorPage() {
       setCurrEditingExperience(prev => prev && { ...prev, [key]: value })
     }
 
+  const handleAssetContentInputChange =
+    (key: keyof ContentTransform) =>
+    (ev: ChangeEvent<HTMLInputElement> | string | boolean) => {
+      if (typeof ev === 'object') ev.preventDefault()
+      const value = typeof ev === 'object' ? ev.target.value : ev
+      setCurrAssetContent(prev => prev && { ...prev, [key]: value })
+    }
+
+  const handleAssetContentTransformChange =
+    (prop: 'position' | 'rotation' | 'scale' | 'quaternion', index: number) =>
+    (ev: ChangeEvent<HTMLInputElement>) => {
+      setCurrAssetContent(
+        prev =>
+          prev && {
+            ...prev,
+            [prop]: [
+              ...prev[prop].slice(0, index),
+              parseFloat(ev.target.value),
+              ...prev[prop].slice(index + 1)
+            ]
+          }
+      )
+    }
+
   const handleAssetSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
     ev.preventDefault()
     const value = ev.target.value
     setCurrAssetIndex(value)
+  }
+
+  const handleRemoveAsset = () => {
+    setCurrAssetContent(null)
+  }
+
+  const handleAssetPlayback = (ev: MouseEvent<HTMLButtonElement>) => {
+    ev.preventDefault()
+    setCurrAssetContent(prev => {
+      if (prev?.playback_settings) {
+        return {
+          ...prev,
+          playback_settings: {
+            ...prev.playback_settings,
+            is_playing: !prev.playback_settings.is_playing
+          }
+        }
+      }
+      return prev
+    })
+  }
+
+  const handleAssetVolumeChange = (ev: ChangeEvent<HTMLInputElement>) => {
+    ev.preventDefault()
+    setCurrAssetContent(prev => {
+      if (prev?.playback_settings) {
+        return {
+          ...prev,
+          playback_settings: {
+            ...prev.playback_settings,
+            volume: parseFloat(ev.target.value) / 100
+          }
+        }
+      }
+      return prev
+    })
   }
 
   const saveApp = async () => {
@@ -201,8 +266,20 @@ export default function EditorPage() {
           name: eExp.name,
           // marker_image: undefined,
           app_id: editorApp.id,
-          asset_uuids: eExp.asset_uuids,
-          transform: eExp.transform ?? []
+          // asset_uuids: eExp.asset_uuids,
+          contents: eExp.contents?.length
+            ? eExp.contents.map(cnt => ({
+                asset_uuid: cnt.asset.uuid,
+                name: cnt.name,
+                click_action: cnt.click_action,
+                playback_settings: cnt.playback_settings,
+                instance_id: cnt.instance_id,
+                position: cnt.position,
+                quaternion: cnt.quaternion,
+                rotation: [cnt.rotation[0], cnt.rotation[1], cnt.rotation[2]],
+                scale: cnt.scale
+              }))
+            : undefined
         }
       })
     })
@@ -237,15 +314,24 @@ export default function EditorPage() {
             prev =>
               prev && {
                 ...prev,
-                asset_uuids: [...prev.asset_uuids, asset.uuid],
-                transform: [
-                  ...(prev.transform ?? []),
+                // asset_uuids: [...prev.asset_uuids, asset.uuid],
+                contents: [
+                  ...(prev.contents ?? []),
                   {
-                    name: asset.name,
-                    asset_url: asset.url,
-                    asset_uuid: asset.uuid,
-                    content_type: asset.content_type,
+                    // asset_url: asset.url,
+                    // asset_uuid: asset.uuid,
+                    // content_type: asset.content_type,
+                    asset,
                     instance_id: generateInstanceID(),
+                    name: asset.name,
+                    playback_settings: asset.content_type.includes('video')
+                      ? {
+                          autoplay: false,
+                          loop: false,
+                          volume: 0.75,
+                          is_playing: false
+                        }
+                      : undefined,
                     position: [0, 0, 0],
                     quaternion: [0, 0, 0, 1],
                     rotation: [0, 0, 0],
@@ -298,13 +384,26 @@ export default function EditorPage() {
       setEditorExperiences(
         expsList.data.map(e => ({
           ...e,
-          transform:
-            e.transform && e.transform.length
-              ? e.transform.map(t => ({
+          contents:
+            e.contents && e.contents.length
+              ? e.contents.map(t => ({
                   ...t,
-                  instance_id: t.instance_id ?? generateInstanceID()
+                  instance_id: t.instance_id ?? generateInstanceID(),
+                  position: numerify(t.position),
+                  rotation: numerify(t.rotation),
+                  scale: numerify(t.scale),
+                  quaternion: numerify(t.quaternion)
                 }))
-              : []
+              : // : e.transform && e.transform.length
+                // ? e.transform.map(t => ({
+                //     ...t,
+                //     instance_id: t.instance_id ?? generateInstanceID(),
+                //     position: numerify(t.position),
+                //     rotation: numerify(t.rotation),
+                //     scale: numerify(t.scale),
+                //     quaternion: numerify(t.quaternion)
+                //   }))
+                []
         }))
       )
     }
@@ -358,7 +457,7 @@ export default function EditorPage() {
         </form>
       </dialog>
 
-      {app.isSuccess && app.data === null ? (
+      {editorApp === null ? (
         <div className='flex max-w-xs flex-col items-stretch justify-center space-y-2'>
           <button
             id='create-app-btn'
@@ -677,11 +776,11 @@ export default function EditorPage() {
                         onChange={handleAssetSelect}
                       >
                         <option value='' disabled>
-                          {currEditingExperience.transform?.length
+                          {currEditingExperience.contents?.length
                             ? 'Pick an asset'
                             : 'Add and asset'}
                         </option>
-                        {currEditingExperience.transform?.map(tr => (
+                        {currEditingExperience.contents?.map(tr => (
                           <option key={tr.instance_id} value={tr.instance_id}>
                             {tr.name}
                           </option>
@@ -700,14 +799,14 @@ export default function EditorPage() {
                       <button
                         className='btn-warning btn-sm btn w-full'
                         disabled={currEditingAsset === null}
-                        // onClick={handleExpRemove}
+                        onClick={handleRemoveAsset}
                       >
                         Remove
                       </button>
                     </div>
 
                     {currEditingAsset !== null &&
-                    currEditingExperience.transform?.length ? (
+                    currEditingExperience.contents?.length ? (
                       <div
                         className='card space-y-1 border-2 px-3 pb-3'
                         style={{
@@ -723,13 +822,7 @@ export default function EditorPage() {
                             type='text'
                             className='input-bordered input input-sm w-full'
                             value={currEditingAsset.name}
-                            onChange={ev => {
-                              ev.preventDefault()
-                              const value = ev.target.value
-                              setCurrAssetContent(
-                                prev => prev && { ...prev, name: value }
-                              )
-                            }}
+                            onChange={handleAssetContentInputChange('name')}
                           />
                         </div>
                         <div className='form-control w-full'>
@@ -745,24 +838,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.position[0]
+                                  value={currEditingAsset.position[0]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'position',
+                                    0
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          position: [
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.position[1],
-                                            prev.position[2]
-                                          ]
-                                        }
-                                    )
-                                  }}
                                   style={{
                                     borderTopLeftRadius:
                                       'var(--rounded-btn, 0.5rem)',
@@ -780,24 +860,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.position[1]
+                                  value={currEditingAsset.position[1]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'position',
+                                    1
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          position: [
-                                            prev.position[0],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.position[2]
-                                          ]
-                                        }
-                                    )
-                                  }}
                                 />
                               </div>
                             </div>
@@ -809,24 +876,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.position[2]
+                                  value={currEditingAsset.position[2]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'position',
+                                    2
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          position: [
-                                            prev.position[0],
-                                            prev.position[1],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            )
-                                          ]
-                                        }
-                                    )
-                                  }}
                                   style={{
                                     borderTopRightRadius:
                                       'var(--rounded-btn, 0.5rem)',
@@ -855,19 +909,10 @@ export default function EditorPage() {
                                     currEditingAsset.rotation[0]
                                   )}
                                   onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          rotation: [
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.rotation[1],
-                                            prev.rotation[2]
-                                          ]
-                                        }
-                                    )
+                                    handleAssetContentTransformChange(
+                                      'rotation',
+                                      0
+                                    )(ev)
                                   }}
                                   style={{
                                     borderTopLeftRadius:
@@ -890,19 +935,10 @@ export default function EditorPage() {
                                     currEditingAsset.rotation[1]
                                   )}
                                   onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          rotation: [
-                                            prev.rotation[0],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.rotation[2]
-                                          ]
-                                        }
-                                    )
+                                    handleAssetContentTransformChange(
+                                      'rotation',
+                                      1
+                                    )(ev)
                                   }}
                                 />
                               </div>
@@ -919,19 +955,10 @@ export default function EditorPage() {
                                     currEditingAsset.rotation[2]
                                   )}
                                   onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          rotation: [
-                                            prev.rotation[0],
-                                            prev.rotation[1],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            )
-                                          ]
-                                        }
-                                    )
+                                    handleAssetContentTransformChange(
+                                      'rotation',
+                                      2
+                                    )(ev)
                                   }}
                                   style={{
                                     borderTopRightRadius:
@@ -957,24 +984,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.scale[0]
+                                  value={currEditingAsset.scale[0]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'scale',
+                                    0
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          scale: [
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.scale[1],
-                                            prev.scale[2]
-                                          ]
-                                        }
-                                    )
-                                  }}
                                   style={{
                                     borderTopLeftRadius:
                                       'var(--rounded-btn, 0.5rem)',
@@ -992,24 +1006,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.scale[1]
+                                  value={currEditingAsset.scale[1]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'scale',
+                                    1
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          scale: [
-                                            prev.scale[0],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            ),
-                                            prev.scale[2]
-                                          ]
-                                        }
-                                    )
-                                  }}
                                 />
                               </div>
                             </div>
@@ -1021,24 +1022,11 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={MathUtils.radToDeg(
-                                    currEditingAsset.scale[2]
+                                  value={currEditingAsset.scale[2]}
+                                  onChange={handleAssetContentTransformChange(
+                                    'scale',
+                                    2
                                   )}
-                                  onChange={ev => {
-                                    setCurrAssetContent(
-                                      prev =>
-                                        prev && {
-                                          ...prev,
-                                          scale: [
-                                            prev.scale[0],
-                                            prev.scale[1],
-                                            MathUtils.degToRad(
-                                              parseFloat(ev.target.value)
-                                            )
-                                          ]
-                                        }
-                                    )
-                                  }}
                                   style={{
                                     borderTopRightRadius:
                                       'var(--rounded-btn, 0.5rem)',
@@ -1050,6 +1038,166 @@ export default function EditorPage() {
                             </div>
                           </div>
                         </div>
+                        {currEditingAsset.asset.content_type.includes(
+                          'image'
+                        ) ? (
+                          <>
+                            <div className='form-control w-full'>
+                              <label className='label'>
+                                <span className='label-text'>Click Action</span>
+                              </label>
+                              <select
+                                className='select-bordered select select-sm'
+                                value={
+                                  currEditingAsset.click_action?.type ?? ''
+                                }
+                                onChange={ev => {
+                                  setCurrAssetContent(
+                                    prev =>
+                                      prev && {
+                                        ...prev,
+                                        click_action: {
+                                          type: ev.target.value,
+                                          target:
+                                            prev.click_action?.target ?? ''
+                                        }
+                                      }
+                                  )
+                                }}
+                              >
+                                <option value='' disabled>
+                                  Pick an action
+                                </option>
+                                <option value='link'>Open an URL</option>
+                                <option value='email'>Send an email</option>
+                                <option value='annotation'>Annotate</option>
+                                <option value='navigate'>Navigate</option>
+                                {/* {currEditingExperience.contents?.map(tr => (
+                                <option
+                                  key={tr.instance_id}
+                                  value={tr.instance_id}
+                                >
+                                  {tr.name}
+                                </option>
+                              ))} */}
+                              </select>
+                            </div>
+                            {currEditingAsset.click_action?.type ? (
+                              <div className='form-control w-full'>
+                                <label className='label'>
+                                  <span className='label-text'>Target</span>
+                                </label>
+                                <input
+                                  type='text'
+                                  placeholder='Link, email, etc.'
+                                  className='input-bordered input input-sm w-full'
+                                  value={
+                                    currEditingAsset.click_action?.target ?? ''
+                                  }
+                                  onChange={ev => {
+                                    setCurrAssetContent(
+                                      prev =>
+                                        prev && {
+                                          ...prev,
+                                          click_action: {
+                                            type: prev.click_action?.type ?? '',
+                                            target: ev.target.value
+                                          }
+                                        }
+                                    )
+                                  }}
+                                />
+                              </div>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {currEditingAsset.asset.content_type.includes(
+                          'video'
+                        ) ? (
+                          <>
+                            <div className='form-control w-full'>
+                              <label className='label'>
+                                <span className='label-text'>Playback</span>
+                              </label>
+                              <button
+                                className='btn-primary btn-sm btn w-full'
+                                onClick={handleAssetPlayback}
+                              >
+                                {currEditingAsset.playback_settings?.is_playing
+                                  ? 'Pause'
+                                  : 'Play'}
+                              </button>
+                            </div>
+                            <div className='form-control w-full'>
+                              <label className='label'>
+                                <span className='label-text'>Volume</span>
+                              </label>
+                              <input
+                                className='range range-primary range-xs'
+                                type='range'
+                                min={0}
+                                max={100}
+                                value={
+                                  (currEditingAsset.playback_settings?.volume ??
+                                    0) * 100
+                                }
+                                onChange={handleAssetVolumeChange}
+                              />
+                            </div>
+                            <div className='form-control'>
+                              <label className='label cursor-pointer'>
+                                <span className='label-text'>Autoplay</span>
+                                <input
+                                  type='checkbox'
+                                  className='toggle-primary toggle'
+                                  checked={
+                                    currEditingAsset.playback_settings
+                                      ?.autoplay ?? false
+                                  }
+                                  onChange={ev => {
+                                    setCurrAssetContent(prev =>
+                                      prev?.playback_settings
+                                        ? {
+                                            ...prev,
+                                            playback_settings: {
+                                              ...prev.playback_settings,
+                                              autoplay: ev.target.checked
+                                            }
+                                          }
+                                        : prev
+                                    )
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className='form-control'>
+                              <label className='label cursor-pointer'>
+                                <span className='label-text'>Loop</span>
+                                <input
+                                  type='checkbox'
+                                  className='toggle-primary toggle'
+                                  checked={
+                                    currEditingAsset.playback_settings?.loop ??
+                                    false
+                                  }
+                                  onChange={ev => {
+                                    setCurrAssetContent(prev =>
+                                      prev?.playback_settings
+                                        ? {
+                                            ...prev,
+                                            playback_settings: {
+                                              ...prev.playback_settings,
+                                              loop: ev.target.checked
+                                            }
+                                          }
+                                        : prev
+                                    )
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

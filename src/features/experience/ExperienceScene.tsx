@@ -14,7 +14,6 @@ import {
   Suspense,
   /* Suspense, */ memo,
   useEffect,
-  useMemo,
   useRef,
   useState
 } from 'react'
@@ -25,10 +24,10 @@ import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransform
 // import { expSceneAtom } from './state'
 import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
 import { hslStringToValues, hslToHex } from './utils'
-import { ContentTransform, Experience } from './api'
+import { Experience } from './api'
 import ContentSceneObject from './AssetContentSceneObject'
-import { useQuery } from '@tanstack/react-query'
-import { getAssets } from 'features/asset/api'
+// import { useQuery } from '@tanstack/react-query'
+// import { getAssets } from 'features/asset/api'
 
 type Props = {
   mode: 'editor' | 'viewer'
@@ -58,14 +57,14 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
   )
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
-  const assets = useQuery({
-    refetchOnWindowFocus: false,
-    retry: false,
-    queryKey: [experience?.id, experience?.transform?.length],
-    queryFn: async ({ queryKey: [experience_id] }) => {
-      return await getAssets({ experience_id })
-    }
-  })
+  // const assets = useQuery({
+  //   refetchOnWindowFocus: false,
+  //   retry: false,
+  //   queryKey: [experience?.id, experience?.contents?.length],
+  //   queryFn: async ({ queryKey: [experience_id] }) => {
+  //     return await getAssets({ experience_id })
+  //   }
+  // })
 
   // const { Transform /* ...gridConfig */ } = useControls({
   //   Transform: {
@@ -90,18 +89,18 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
   //   }))
   // }, [Transform, setExpSceneState])
 
-  const contents = useMemo(() => {
-    if (experience?.transform?.length && assets.data) {
-      return experience.transform.map<ContentTransform>(content => ({
-        ...content,
-        asset_url:
-          assets.data.find(a => a.uuid === content.asset_uuid)?.url ??
-          content.asset_url ??
-          ''
-      }))
-    }
-    return []
-  }, [assets, experience?.transform])
+  // const contents = useMemo(() => {
+  //   if (experience?.contents?.length && assets.data) {
+  //     return experience.contents.map<ContentTransform>(content => ({
+  //       ...content,
+  //       asset_url:
+  //         assets.data.find(a => a.uuid === content.asset_uuid)?.url ??
+  //         content.asset_url ??
+  //         ''
+  //     }))
+  //   }
+  //   return []
+  // }, [assets, experience?.contents])
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -143,7 +142,7 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
       {mode === 'editor' && <SelectedSceneObjectTransformControls />}
       <CameraControls makeDefault />
       <Environment files={environment_src} />
-      <GizmoHelper alignment='top-right' margin={[80, 80]}>
+      <GizmoHelper alignment='top-right' margin={[70, 70]}>
         <GizmoViewport
           axisColors={['#9d4b4b', '#2f7f4f', '#3b5b9d']}
           labelColor='white'
@@ -151,7 +150,7 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
       </GizmoHelper>
       <group position={[0, -0.5, 0]}>
         <Select>
-          {contents?.map(content => (
+          {experience?.contents?.map(content => (
             <Suspense key={content.instance_id} fallback={null}>
               <ContentSceneObject content={content} />
             </Suspense>

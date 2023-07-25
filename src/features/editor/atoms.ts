@@ -60,7 +60,7 @@ export const currEditingAssetAtom = atom(
     const currExp = get(currEditingExperienceAtom)
     const currAssetInstanceID = get(currEditingAssetInstanceIDAtom)
     if (currExp === null || currAssetInstanceID === '') return null
-    const contents = currExp.transform
+    const contents = currExp.contents
     if (!contents?.length) return null
     return contents.find(c => c.instance_id === currAssetInstanceID) ?? null
   },
@@ -68,7 +68,7 @@ export const currEditingAssetAtom = atom(
     const currExp = get(currEditingExperienceAtom)
     const currAssetInstanceID = get(currEditingAssetInstanceIDAtom)
     if (currExp === null || currAssetInstanceID === '') return
-    const contents = currExp.transform
+    const contents = currExp.contents
     if (!contents?.length) return
     const currAssetIndex = contents.findIndex(
       c => c.instance_id === currAssetInstanceID
@@ -86,7 +86,7 @@ export const currEditingAssetAtom = atom(
           ...contents.slice(0, currAssetIndex),
           ...contents.slice(currAssetIndex + 1)
         ]
-    set(currEditingExperienceAtom, { ...currExp, transform: update })
+    set(currEditingExperienceAtom, { ...currExp, contents: update })
     if (newValue === null) {
       set(currEditingAssetInstanceIDAtom, '')
     }

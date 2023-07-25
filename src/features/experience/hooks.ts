@@ -3,6 +3,7 @@ import { experienceQueryAtom, experiencesQueryAtom } from './atoms'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CreateExperienceRequest,
+  Experience,
   createExperience,
   deleteExperience,
   updateExperience
@@ -33,9 +34,19 @@ export function useExperienceMutation() {
       // throw new Error('No experience selected to update')
     },
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['exp', expQuery])
-        queryClient.invalidateQueries(['exps', expsQuery])
+      onSuccess: exp => {
+        queryClient.setQueryData(['exp', expQuery], exp)
+        queryClient.setQueryData<Experience[]>(['exps', expQuery], prev => {
+          if (prev) {
+            const index = prev.findIndex(e => e.id === exp.id)
+            if (index > 0) {
+              return [...prev.slice(0, index), exp, ...prev.slice(index + 1)]
+            }
+          }
+          return prev
+        })
+        // queryClient.invalidateQueries(['exp', expQuery])
+        // queryClient.invalidateQueries(['exps', expsQuery])
       }
     }
   )

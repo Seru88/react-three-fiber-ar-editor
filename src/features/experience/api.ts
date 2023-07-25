@@ -5,6 +5,7 @@ import {
   getFormDataFromObject,
   throwNetworkError
 } from 'common/utils'
+import { Asset } from 'features/asset/api'
 
 export type Experience = {
   app_id: number
@@ -14,29 +15,40 @@ export type Experience = {
   marker_image_url: string | null
   modified: string // datetime
   name: string
-  transform: ContentTransform[] | null
+  transform?: ContentTransform[] | null
+  contents: ContentTransform[] | null
 }
 
 export type ContentTransform = {
+  asset: Asset
   name: string
-  asset_url?: string // Used in client only
-  asset_uuid: string
+  // asset_url?: string // Used in client only
+  // asset_uuid: string
   click_action?: { target: string; type: string }
-  content_type: string
+  // content_type: string
   instance_id: string // Used in client only
-  playback_settings?: { autoplay?: boolean; loop?: boolean; volume: number }
-  position: [x: number, y: number, z: number]
-  quaternion: [x: number, y: number, z: number, w: number]
-  rotation: [x: number, y: number, z: number]
-  scale: [x: number, y: number, z: number]
+  playback_settings?: {
+    autoplay?: boolean
+    loop?: boolean
+    volume: number
+    is_playing?: boolean
+  }
+  position: Vec3
+  quaternion: Vec4
+  rotation: Vec3
+  scale: Vec3
 }
+
+export type Vec3 = [x: number, y: number, z: number]
+export type Vec4 = [x: number, y: number, z: number, w: number]
 
 export type CreateExperienceRequest = {
   name?: string
   marker_image?: File
   app_id: number
   asset_uuids?: string[]
-  transform?: ContentTransform[]
+  // transform?: ContentTransform[]
+  contents?: Omit<ContentTransform & { asset_uuid: string }, 'asset'>[]
 }
 
 export type GetExperiencesQuery = {

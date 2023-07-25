@@ -7,29 +7,29 @@ import {
   useTexture,
   useVideoTexture
 } from '@react-three/drei'
+import { currEditingAssetInstanceIDAtom } from 'features/editor/atoms'
 import { useAtom } from 'jotai'
 import { FC, memo, useEffect } from 'react'
 import { DoubleSide, MeshStandardMaterial } from 'three'
 
-import { getSceneObjectParentByName } from './utils'
 import { ContentTransform } from './api'
-import { currEditingAssetInstanceIDAtom } from 'features/editor/atoms'
+import { getSceneObjectParentByName } from './utils'
 
 type Props = {
   content: ContentTransform
 }
 
 const ModelContentSceneObject: FC<Props> = memo(({ content }) => {
-  if (!content.asset_url) return null
+  if (!content.asset.url) return null
   return (
     <Resize>
-      <Gltf src={content.asset_url} name={content.instance_id} />
+      <Gltf src={content.asset.url} name={content.instance_id} />
     </Resize>
   )
 })
 
 const ImageContentSceneObject: FC<Props> = memo(({ content }) => {
-  const texture = useTexture(content.asset_url ?? '')
+  const texture = useTexture(content.asset.url ?? '')
   return (
     <Resize>
       <Image
@@ -49,10 +49,27 @@ const ImageContentSceneObject: FC<Props> = memo(({ content }) => {
 })
 
 const VideoContentSceneObject: FC<Props> = memo(({ content }) => {
-  const texture = useVideoTexture(content.asset_url ?? '', {
-    muted: true,
-    start: true
+  const texture = useVideoTexture(content.asset.url ?? '', {
+    muted: false,
+    start: false
   })
+
+  useEffect(() => {
+    const video = texture.image as HTMLVideoElement
+    if (content.playback_settings?.is_playing) {
+      video.play()
+    } else {
+      video.pause()
+    }
+  }, [content.playback_settings?.is_playing, texture])
+
+  useEffect(() => {
+    const video = texture.image as HTMLVideoElement
+    if (typeof content.playback_settings?.volume === 'number') {
+      video.volume = content.playback_settings.volume
+    }
+  }, [content.playback_settings?.volume, texture])
+
   return (
     <Resize>
       <mesh
@@ -88,13 +105,13 @@ const ContentSceneObject: FC<Props> = memo(({ content }) => {
       rotation={content.rotation}
       scale={content.scale}
     >
-      {content.content_type.includes('image') ? (
+      {content.asset.content_type.includes('image') ? (
         <ImageContentSceneObject content={content} />
       ) : null}
-      {content.content_type.includes('video') ? (
+      {content.asset.content_type.includes('video') ? (
         <VideoContentSceneObject content={content} />
       ) : null}
-      {content.content_type === 'model/gltf-binary' ? (
+      {content.asset.content_type === 'model/gltf-binary' ? (
         <ModelContentSceneObject content={content} />
       ) : null}
     </Center>
