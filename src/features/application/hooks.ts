@@ -5,6 +5,7 @@ import { createApp, CreateAppRequest, deleteApp, updateApp } from './api'
 import { appQueryAtom, appsQueryAtom } from './atoms'
 
 export function useAppMutation() {
+  // ! Condisder only mutating appsQueryAtom
   const [appQuery, setAppQuery] = useAtom(appQueryAtom)
   const [appsQuery] = useAtom(appsQueryAtom)
   const queryClient = useQueryClient()

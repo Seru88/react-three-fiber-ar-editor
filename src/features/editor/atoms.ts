@@ -16,7 +16,6 @@ export const editorGizmoAtom = atom<'translate' | 'rotate' | 'scale' | null>(
   'translate'
 )
 
-// * Consider using the experience's UUID instead.
 export const currEditingExperienceIndexAtom = atom<number | null>(null)
 
 export const currEditingAssetInstanceIDAtom = atom('')

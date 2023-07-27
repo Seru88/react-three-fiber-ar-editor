@@ -14,7 +14,7 @@ import {
   LoginRequest,
   refreshLogin,
   User
-} from './api'
+} from '../api'
 
 export type AuthContextType = {
   user: User | null
