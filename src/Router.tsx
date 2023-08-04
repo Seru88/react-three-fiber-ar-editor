@@ -26,7 +26,14 @@ export default function Router() {
         </Route>
         <Route path='/viewer/:appID' element={<ViewerPage />} />
         <Route path='/login' element={<LoginPage />} />
-        <Route path='*' element={<div>404 Not Found!</div>} />
+        <Route
+          path='*'
+          element={
+            <div className='flex h-screen w-screen items-center justify-center'>
+              404 Not Found!
+            </div>
+          }
+        />
       </Routes>
     </BrowserRouter>
   )

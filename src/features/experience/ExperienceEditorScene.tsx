@@ -7,34 +7,19 @@ import {
   Select
 } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-// import { useAtom } from 'jotai'
-// import { useControls } from 'leva'
-import {
-  FC,
-  Suspense,
-  /* Suspense, */ memo,
-  useEffect,
-  useRef,
-  useState
-} from 'react'
-
-// import AssetContentSceneObject from './AssetContentSceneObject'
-import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransformControls'
-// import { sceneAssetContentsAtom } from './atoms'
-// import { expSceneAtom } from './state'
 import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
-import { hslStringToValues, hslToHex } from './utils'
+import { FC, memo, Suspense, useEffect, useRef, useState } from 'react'
+
 import { Experience } from './api'
 import ContentSceneObject from './AssetContentSceneObject'
-// import { useQuery } from '@tanstack/react-query'
-// import { getAssets } from 'features/asset/api'
+import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransformControls'
+import { hslStringToValues, hslToHex } from './utils'
 
 type Props = {
-  mode: 'editor' | 'viewer'
   experience: Experience | null
 }
 
-const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
+const ExperienceEditorScene: FC<Props> = memo(({ experience }) => {
   const [cellColor, setCellColor] = useState(
     hslToHex(
       ...hslStringToValues(
@@ -56,51 +41,6 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
     )
   )
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-
-  // const assets = useQuery({
-  //   refetchOnWindowFocus: false,
-  //   retry: false,
-  //   queryKey: [experience?.id, experience?.contents?.length],
-  //   queryFn: async ({ queryKey: [experience_id] }) => {
-  //     return await getAssets({ experience_id })
-  //   }
-  // })
-
-  // const { Transform /* ...gridConfig */ } = useControls({
-  //   Transform: {
-  //     options: { Translate: 'translate', Rotate: 'rotate', Scale: 'scale' }
-  //   }
-  //   // cellSize: { value: 0.1, min: 0, max: 10, step: 0.1 },
-  //   // cellThickness: { value: 0.8, min: 0, max: 5, step: 0.1 },
-  //   // cellColor: '#6f6f6f',
-  //   // sectionSize: { value: 1, min: 0, max: 10, step: 0.1 },
-  //   // sectionThickness: { value: 1.1, min: 0, max: 5, step: 0.1 },
-  //   // sectionColor: '#5afed4',
-  //   // fadeDistance: { value: 25, min: 0, max: 100, step: 1 },
-  //   // fadeStrength: { value: 1, min: 0, max: 1, step: 0.1 },
-  //   // followCamera: false,
-  //   // infiniteGrid: true
-  // })
-
-  // useEffect(() => {
-  //   setExpSceneState(prev => ({
-  //     ...prev,
-  //     gizmo: Transform as 'translate' | 'rotate' | 'scale'
-  //   }))
-  // }, [Transform, setExpSceneState])
-
-  // const contents = useMemo(() => {
-  //   if (experience?.contents?.length && assets.data) {
-  //     return experience.contents.map<ContentTransform>(content => ({
-  //       ...content,
-  //       asset_url:
-  //         assets.data.find(a => a.uuid === content.asset_uuid)?.url ??
-  //         content.asset_url ??
-  //         ''
-  //     }))
-  //   }
-  //   return []
-  // }, [assets, experience?.contents])
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -139,7 +79,7 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
 
   return (
     <Canvas ref={canvasRef} camera={{ position: [5, 6, 6], fov: 25 }}>
-      {mode === 'editor' && <SelectedSceneObjectTransformControls />}
+      <SelectedSceneObjectTransformControls />
       <CameraControls makeDefault />
       <Environment files={environment_src} />
       <GizmoHelper alignment='top-right' margin={[70, 70]}>
@@ -174,4 +114,4 @@ const ExperienceScene: FC<Props> = memo(({ mode, experience }) => {
     </Canvas>
   )
 })
-export default ExperienceScene
+export default ExperienceEditorScene

@@ -24,7 +24,7 @@ import {
   experiencesAtom,
   experiencesQueryAtom
 } from 'features/experience/atoms'
-import ExperienceScene from 'features/experience/ExperienceScene'
+import ExperienceEditorScene from 'features/experience/ExperienceEditorScene'
 import { useExperienceMutation } from 'features/experience/hooks'
 import { generateInstanceID } from 'features/experience/utils'
 import { useAtom } from 'jotai'
@@ -394,16 +394,7 @@ export default function EditorPage() {
                   scale: numerify(t.scale),
                   quaternion: numerify(t.quaternion)
                 }))
-              : // : e.transform && e.transform.length
-                // ? e.transform.map(t => ({
-                //     ...t,
-                //     instance_id: t.instance_id ?? generateInstanceID(),
-                //     position: numerify(t.position),
-                //     rotation: numerify(t.rotation),
-                //     scale: numerify(t.scale),
-                //     quaternion: numerify(t.quaternion)
-                //   }))
-                []
+              : []
         }))
       )
     }
@@ -1364,10 +1355,7 @@ export default function EditorPage() {
               {isDragActive ? (
                 <FileUploadBackdrop>Drag n' drop file here.</FileUploadBackdrop>
               ) : null}
-              <ExperienceScene
-                mode='editor'
-                experience={currEditingExperience}
-              />
+              <ExperienceEditorScene experience={currEditingExperience} />
             </div>
           </div>
         </div>
