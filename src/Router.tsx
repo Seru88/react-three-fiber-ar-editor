@@ -24,7 +24,7 @@ export default function Router() {
           <Route index element={<Index />} />
           <Route path='edit' element={<EditorPage />} />
         </Route>
-        <Route path='/viewer/:appID' element={<ViewerPage />} />
+        <Route path='/app/:appID' element={<ViewerPage />} />
         <Route path='/login' element={<LoginPage />} />
         <Route
           path='*'

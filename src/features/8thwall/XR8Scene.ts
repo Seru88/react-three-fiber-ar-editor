@@ -53,7 +53,7 @@ export default function XR8Scene(
       cubeMapScene.add(sphereMesh)
 
       if (R3Scene.current) scene.add(R3Scene.current)
-      camera.position.set(0, 3, 5)
+      camera.position.set(0, 3, 3)
     }
 
     window.XR8.addCameraPipelineModules([
@@ -62,7 +62,7 @@ export default function XR8Scene(
       window.XR8.XrController.pipelineModule({
         disableWorldTracking: !isMobile,
         enableLighting: true
-        // imageTargets: ['HolidayCookie_Bottle', 'CandyCane_Bottle']
+        // imageTargets: ['HolidayCookawie_Bottle', 'CandyCane_Bottle']
       }), // Enables SLAM tracking.
       window.LandingPage.pipelineModule(), // Detects unsupported browsers and gives hints.
       window.XRExtras.FullWindowCanvas.pipelineModule(), // Modifies the canvas to fill the window.

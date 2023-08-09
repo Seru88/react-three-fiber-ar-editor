@@ -9,6 +9,7 @@ import * as THREE from 'three'
 declare global {
   interface Window {
     apps_modal: HTMLDialogElement
+    apps_modal_b: HTMLDialogElement
     templates_model: HTMLDialogElement
     XR8: any
     XRExtras: any

@@ -52,54 +52,56 @@ export default function ViewerPage() {
 
   return (
     <main>
-      <div className='absolute left-0 top-0 h-dynamic-screen w-full'>
-        {app.isLoading || !expsList.isFetched || expsList.isLoading ? (
-          <LoadingScreen />
-        ) : null}
-        {app.data ? (
-          <div
-            className={clsx(
-              'relative h-full w-full flex-col items-center bg-cover bg-center bg-no-repeat',
-              startXR ? 'hidden' : 'flex'
-            )}
-            style={{ backgroundImage: `url(${app.data.background_image_url})` }}
-          >
-            <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
-              {app.data.logo_image_url ? (
-                <img
-                  className='mx-auto max-h-full max-w-full rounded-lg'
-                  src={app.data.logo_image_url}
-                  alt='App Logo'
-                />
-              ) : null}
+      {!startXR ? (
+        <div className='absolute left-0 top-0 h-dynamic-screen w-full overflow-hidden'>
+          {app.isLoading || expsList.isLoading ? <LoadingScreen /> : null}
+          {app.data ? (
+            <div
+              className={clsx(
+                'relative h-full w-full flex-col items-center bg-cover bg-center bg-no-repeat',
+                startXR ? 'hidden' : 'flex'
+              )}
+              style={{
+                backgroundImage: `url(${app.data.background_image_url})`
+              }}
+            >
+              <div className='mx-auto h-1/5 w-11/12 max-w-xs'>
+                {app.data.logo_image_url ? (
+                  <img
+                    className='mx-auto max-h-full max-w-full rounded-lg'
+                    src={app.data.logo_image_url}
+                    alt='App Logo'
+                  />
+                ) : null}
+              </div>
+              <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
+                {app.data.image_url ? (
+                  <img
+                    className='mx-auto max-h-full max-w-full rounded-lg'
+                    src={app.data.image_url}
+                    alt='App Landing Image'
+                  />
+                ) : null}
+                {app.data.text ? (
+                  <div className='text-center'>{app.data.text}</div>
+                ) : null}
+              </div>
+              <div className='absolute bottom-14 mx-auto h-10 w-11/12 max-w-xs'>
+                <button
+                  className='mx-auto flex h-full w-full flex-col items-center justify-center rounded-lg'
+                  onClick={handleStartXR}
+                  style={{
+                    backgroundColor: app.data.button_background_color,
+                    color: app.data.button_text_color
+                  }}
+                >
+                  {app.data.button_text}
+                </button>
+              </div>
             </div>
-            <div className='mx-auto h-2/5 w-11/12 max-w-xs space-y-2'>
-              {app.data.image_url ? (
-                <img
-                  className='mx-auto max-h-full max-w-full rounded-lg'
-                  src={app.data.image_url}
-                  alt='App Landing Image'
-                />
-              ) : null}
-              {app.data.text ? (
-                <div className='text-center'>{app.data.text}</div>
-              ) : null}
-            </div>
-            <div className='absolute bottom-14 mx-auto h-10 w-11/12 max-w-xs'>
-              <button
-                className='mx-auto flex h-full w-full flex-col items-center justify-center rounded-lg'
-                onClick={handleStartXR}
-                style={{
-                  backgroundColor: app.data.button_background_color,
-                  color: app.data.button_text_color
-                }}
-              >
-                {app.data.button_text}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
       {currExp && startXR ? <ExperienceXRScene experience={currExp} /> : null}
     </main>
   )

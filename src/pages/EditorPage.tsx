@@ -40,6 +40,7 @@ import {
 import { HexColorInput, HexColorPicker } from 'react-colorful'
 import { FileRejection, useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
+import { Link } from 'react-router-dom'
 import { MathUtils } from 'three'
 
 const MEGABYTE = 1000000
@@ -418,7 +419,7 @@ export default function EditorPage() {
             ✕
           </button>
           <h3 className='mb-4 text-xl font-medium text-base-content'>
-            Choose an App
+            Choose an App to Edit
           </h3>
           {appsList.isLoading ? (
             <div className='flex w-full items-center justify-center p-2'>
@@ -447,25 +448,70 @@ export default function EditorPage() {
           <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'></div>
         </form>
       </dialog>
+      <dialog id='apps_modal_b' className='modal'>
+        <form method='dialog' className='modal-box'>
+          <button className='btn-ghost btn-sm btn-circle btn absolute right-2 top-2'>
+            ✕
+          </button>
+          <h3 className='mb-4 text-xl font-medium text-base-content'>
+            Choose an App to Run
+          </h3>
+          {appsList.isLoading ? (
+            <div className='flex w-full items-center justify-center p-2'>
+              <span className='loading loading-infinity loading-lg' />
+            </div>
+          ) : (
+            <>
+              {appsList.data && appsList.data.length > 0 ? (
+                <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'>
+                  {appsList.data?.map(a => (
+                    <div key={a.id} className='card-bordered card'>
+                      <Link
+                        className='btn-ghost btn flex aspect-square h-auto flex-col items-center justify-center text-lg font-bold normal-case'
+                        to={`/app/${a.id}`}
+                      >
+                        {a.name}
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className='w-full text-center'>No apps to load.</div>
+              )}
+            </>
+          )}
+          <div className='grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'></div>
+        </form>
+      </dialog>
 
       {editorApp === null ? (
-        <div className='flex max-w-xs flex-col items-stretch justify-center space-y-2'>
+        <div className='flex max-w-xs flex-col items-stretch justify-center space-y-3'>
           <button
             id='create-app-btn'
-            className='btn-primary btn'
+            className='btn-primary btn-wide btn'
             onClick={handleAppCreate}
           >
-            Creat a new app
+            New
           </button>
           <button
             id='load-app-btn'
-            className='btn-primary btn'
+            className='btn-primary btn-wide btn'
             onClick={ev => {
               ev.preventDefault()
               window.apps_modal.showModal()
             }}
           >
-            Load an app
+            Edit
+          </button>
+          <button
+            id='load-app-btn'
+            className='btn-primary btn-wide btn'
+            onClick={ev => {
+              ev.preventDefault()
+              window.apps_modal_b.showModal()
+            }}
+          >
+            Run
           </button>
         </div>
       ) : (
