@@ -80,16 +80,17 @@ export default function EditorPage() {
   const [editorExperiences, setEditorExperiences] = useAtom(
     editorExperiencesAtom
   )
-  const [currExpIndex, setCurrExpIndex] = useAtom(
+  const [currEditingExperienceIndex, setCurrEditingExperienceIndex] = useAtom(
     currEditingExperienceIndexAtom
   )
-  const [currAssetIndex, setCurrAssetIndex] = useAtom(
+  const [currEditingAssetInstanceID, setCurrEditingAssetInstanceID] = useAtom(
     currEditingAssetInstanceIDAtom
   )
   const [currEditingExperience, setCurrEditingExperience] = useAtom(
     currEditingExperienceAtom
   )
-  const [currEditingAsset, setCurrAssetContent] = useAtom(currEditingAssetAtom)
+  const [currEditingAssetContent, setCurrEditingAssetContent] =
+    useAtom(currEditingAssetAtom)
   const [editorGizmo, setEditorGizmo] = useAtom(editorGizmoAtom)
 
   // UI
@@ -137,7 +138,7 @@ export default function EditorPage() {
   const handleExpSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
     ev.preventDefault()
     const index = parseInt(ev.target.value)
-    setCurrExpIndex(index)
+    setCurrEditingExperienceIndex(index)
   }
 
   const handleExpCreate = () => {
@@ -179,13 +180,13 @@ export default function EditorPage() {
     (ev: ChangeEvent<HTMLInputElement> | string | boolean) => {
       if (typeof ev === 'object') ev.preventDefault()
       const value = typeof ev === 'object' ? ev.target.value : ev
-      setCurrAssetContent(prev => prev && { ...prev, [key]: value })
+      setCurrEditingAssetContent(prev => prev && { ...prev, [key]: value })
     }
 
   const handleAssetContentTransformChange =
     (prop: 'position' | 'rotation' | 'scale' | 'quaternion', index: number) =>
     (ev: ChangeEvent<HTMLInputElement>) => {
-      setCurrAssetContent(
+      setCurrEditingAssetContent(
         prev =>
           prev && {
             ...prev,
@@ -201,32 +202,39 @@ export default function EditorPage() {
   const handleAssetSelect = (ev: ChangeEvent<HTMLSelectElement>) => {
     ev.preventDefault()
     const value = ev.target.value
-    setCurrAssetIndex(value)
+    setCurrEditingAssetInstanceID(value)
   }
 
   const handleRemoveAsset = () => {
-    setCurrAssetContent(null)
+    setCurrEditingAssetContent(null)
   }
 
   const handleAssetPlayback = (ev: MouseEvent<HTMLButtonElement>) => {
     ev.preventDefault()
-    setCurrAssetContent(prev => {
-      if (prev?.playback_settings) {
-        return {
-          ...prev,
-          playback_settings: {
-            ...prev.playback_settings,
-            is_playing: !prev.playback_settings.is_playing
-          }
-        }
-      }
-      return prev
-    })
+    const video = document.getElementById(
+      currEditingAssetInstanceID
+    ) as HTMLVideoElement | null
+    if (video) {
+      if (video.paused) video.play()
+      else video.pause()
+    }
+    // setCurrAssetContent(prev => {
+    //   if (prev?.playback_settings) {
+    //     return {
+    //       ...prev,
+    //       playback_settings: {
+    //         ...prev.playback_settings,
+    //         is_playing: !prev.playback_settings.is_playing
+    //       }
+    //     }
+    //   }
+    //   return prev
+    // })
   }
 
   const handleAssetVolumeChange = (ev: ChangeEvent<HTMLInputElement>) => {
     ev.preventDefault()
-    setCurrAssetContent(prev => {
+    setCurrEditingAssetContent(prev => {
       if (prev?.playback_settings) {
         return {
           ...prev,
@@ -303,7 +311,7 @@ export default function EditorPage() {
 
   const handleFileAccepted = useCallback(
     (files: File[]) => {
-      if (currExpIndex === null) {
+      if (currEditingExperienceIndex === null) {
         toast.error('Pick an experience first!')
         return
       }
@@ -346,7 +354,7 @@ export default function EditorPage() {
         error: err => (err as Error).message
       })
     },
-    [currExpIndex, setCurrEditingExperience]
+    [currEditingExperienceIndex, setCurrEditingExperience]
   )
 
   const handleFileRejected = useCallback((fileRejections: FileRejection[]) => {
@@ -402,10 +410,10 @@ export default function EditorPage() {
   }, [expsList.isSuccess, expsList.data, setEditorExperiences])
 
   useEffect(() => {
-    if (currExpIndex !== null) {
-      setCurrAssetIndex('')
+    if (currEditingExperienceIndex !== null) {
+      setCurrEditingAssetInstanceID('')
     }
-  }, [currExpIndex, setCurrAssetIndex])
+  }, [currEditingExperienceIndex, setCurrEditingAssetInstanceID])
 
   if (app.isInitialLoading) {
     return <LoadingScreen />
@@ -749,7 +757,7 @@ export default function EditorPage() {
                 <div className='form-control w-full'>
                   <select
                     className='select-bordered select select-sm'
-                    value={currExpIndex ?? ''}
+                    value={currEditingExperienceIndex ?? ''}
                     onChange={handleExpSelect}
                   >
                     <option value='' disabled>
@@ -809,7 +817,7 @@ export default function EditorPage() {
                       </label>
                       <select
                         className='select-bordered select select-sm'
-                        value={currAssetIndex}
+                        value={currEditingAssetInstanceID}
                         onChange={handleAssetSelect}
                       >
                         <option value='' disabled>
@@ -835,14 +843,14 @@ export default function EditorPage() {
                       </button>
                       <button
                         className='btn-warning btn-sm btn w-full'
-                        disabled={currEditingAsset === null}
+                        disabled={currEditingAssetContent === null}
                         onClick={handleRemoveAsset}
                       >
                         Remove
                       </button>
                     </div>
 
-                    {currEditingAsset !== null &&
+                    {currEditingAssetContent !== null &&
                     currEditingExperience.contents?.length ? (
                       <div
                         className='card space-y-1 border-2 px-3 pb-3'
@@ -858,7 +866,7 @@ export default function EditorPage() {
                           <input
                             type='text'
                             className='input-bordered input input-sm w-full'
-                            value={currEditingAsset.name}
+                            value={currEditingAssetContent.name}
                             onChange={handleAssetContentInputChange('name')}
                           />
                         </div>
@@ -875,7 +883,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[0]}
+                                  value={currEditingAssetContent.position[0]}
                                   onChange={handleAssetContentTransformChange(
                                     'position',
                                     0
@@ -897,7 +905,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[1]}
+                                  value={currEditingAssetContent.position[1]}
                                   onChange={handleAssetContentTransformChange(
                                     'position',
                                     1
@@ -913,7 +921,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.position[2]}
+                                  value={currEditingAssetContent.position[2]}
                                   onChange={handleAssetContentTransformChange(
                                     'position',
                                     2
@@ -943,7 +951,7 @@ export default function EditorPage() {
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
                                   value={MathUtils.radToDeg(
-                                    currEditingAsset.rotation[0]
+                                    currEditingAssetContent.rotation[0]
                                   )}
                                   onChange={ev => {
                                     handleAssetContentTransformChange(
@@ -969,7 +977,7 @@ export default function EditorPage() {
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
                                   value={MathUtils.radToDeg(
-                                    currEditingAsset.rotation[1]
+                                    currEditingAssetContent.rotation[1]
                                   )}
                                   onChange={ev => {
                                     handleAssetContentTransformChange(
@@ -989,7 +997,7 @@ export default function EditorPage() {
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
                                   value={MathUtils.radToDeg(
-                                    currEditingAsset.rotation[2]
+                                    currEditingAssetContent.rotation[2]
                                   )}
                                   onChange={ev => {
                                     handleAssetContentTransformChange(
@@ -1021,7 +1029,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[0]}
+                                  value={currEditingAssetContent.scale[0]}
                                   onChange={handleAssetContentTransformChange(
                                     'scale',
                                     0
@@ -1043,7 +1051,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[1]}
+                                  value={currEditingAssetContent.scale[1]}
                                   onChange={handleAssetContentTransformChange(
                                     'scale',
                                     1
@@ -1059,7 +1067,7 @@ export default function EditorPage() {
                                 <input
                                   className='input-bordered input input-sm join-item w-full'
                                   type='number'
-                                  value={currEditingAsset.scale[2]}
+                                  value={currEditingAssetContent.scale[2]}
                                   onChange={handleAssetContentTransformChange(
                                     'scale',
                                     2
@@ -1075,7 +1083,7 @@ export default function EditorPage() {
                             </div>
                           </div>
                         </div>
-                        {currEditingAsset.asset.content_type.includes(
+                        {currEditingAssetContent.asset.content_type.includes(
                           'image'
                         ) ? (
                           <>
@@ -1086,10 +1094,11 @@ export default function EditorPage() {
                               <select
                                 className='select-bordered select select-sm'
                                 value={
-                                  currEditingAsset.click_action?.type ?? ''
+                                  currEditingAssetContent.click_action?.type ??
+                                  ''
                                 }
                                 onChange={ev => {
-                                  setCurrAssetContent(
+                                  setCurrEditingAssetContent(
                                     prev =>
                                       prev && {
                                         ...prev,
@@ -1119,7 +1128,7 @@ export default function EditorPage() {
                               ))} */}
                               </select>
                             </div>
-                            {currEditingAsset.click_action?.type ? (
+                            {currEditingAssetContent.click_action?.type ? (
                               <div className='form-control w-full'>
                                 <label className='label'>
                                   <span className='label-text'>Target</span>
@@ -1129,10 +1138,11 @@ export default function EditorPage() {
                                   placeholder='Link, email, etc.'
                                   className='input-bordered input input-sm w-full'
                                   value={
-                                    currEditingAsset.click_action?.target ?? ''
+                                    currEditingAssetContent.click_action
+                                      ?.target ?? ''
                                   }
                                   onChange={ev => {
-                                    setCurrAssetContent(
+                                    setCurrEditingAssetContent(
                                       prev =>
                                         prev && {
                                           ...prev,
@@ -1148,7 +1158,7 @@ export default function EditorPage() {
                             ) : null}
                           </>
                         ) : null}
-                        {currEditingAsset.asset.content_type.includes(
+                        {currEditingAssetContent.asset.content_type.includes(
                           'video'
                         ) ? (
                           <>
@@ -1160,7 +1170,8 @@ export default function EditorPage() {
                                 className='btn-primary btn-sm btn w-full'
                                 onClick={handleAssetPlayback}
                               >
-                                {currEditingAsset.playback_settings?.is_playing
+                                {currEditingAssetContent.playback_settings
+                                  ?.is_playing
                                   ? 'Pause'
                                   : 'Play'}
                               </button>
@@ -1175,8 +1186,8 @@ export default function EditorPage() {
                                 min={0}
                                 max={100}
                                 value={
-                                  (currEditingAsset.playback_settings?.volume ??
-                                    0) * 100
+                                  (currEditingAssetContent.playback_settings
+                                    ?.volume ?? 0) * 100
                                 }
                                 onChange={handleAssetVolumeChange}
                               />
@@ -1188,11 +1199,11 @@ export default function EditorPage() {
                                   type='checkbox'
                                   className='toggle-primary toggle'
                                   checked={
-                                    currEditingAsset.playback_settings
+                                    currEditingAssetContent.playback_settings
                                       ?.autoplay ?? false
                                   }
                                   onChange={ev => {
-                                    setCurrAssetContent(prev =>
+                                    setCurrEditingAssetContent(prev =>
                                       prev?.playback_settings
                                         ? {
                                             ...prev,
@@ -1214,11 +1225,11 @@ export default function EditorPage() {
                                   type='checkbox'
                                   className='toggle-primary toggle'
                                   checked={
-                                    currEditingAsset.playback_settings?.loop ??
-                                    false
+                                    currEditingAssetContent.playback_settings
+                                      ?.loop ?? false
                                   }
                                   onChange={ev => {
-                                    setCurrAssetContent(prev =>
+                                    setCurrEditingAssetContent(prev =>
                                       prev?.playback_settings
                                         ? {
                                             ...prev,

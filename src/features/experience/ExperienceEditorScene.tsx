@@ -11,7 +11,7 @@ import environment_src from 'assets/textures/potsdamer_platz_1k.hdr'
 import { FC, memo, Suspense, useEffect, useRef, useState } from 'react'
 
 import { Experience } from './api'
-import ContentSceneObject from './AssetContentSceneObject'
+import ContentSceneObject from './ContentSceneObject'
 import SelectedSceneObjectTransformControls from './SelectedSceneObjectTransformControls'
 import { hslStringToValues, hslToHex } from './utils'
 

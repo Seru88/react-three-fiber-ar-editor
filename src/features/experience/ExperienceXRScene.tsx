@@ -11,7 +11,7 @@ import {
   Vector2,
   Vector3
 } from 'three'
-import ContentSceneObject from './AssetContentSceneObject'
+import ContentSceneObject from './ContentSceneObject'
 import XR8Scene from 'features/8thwall/XR8Scene'
 import { /* CameraControls, */ Plane } from '@react-three/drei'
 
@@ -146,7 +146,7 @@ const ExperienceXRScene: FC<Props> = ({ experience }) => {
         <group ref={expGroupRef} name='exp-root-node'>
           {experience.contents?.map(content => (
             <Suspense key={content.instance_id} fallback={null}>
-              <ContentSceneObject content={content} />
+              <ContentSceneObject content={content} isInteractive />
             </Suspense>
           ))}
         </group>
