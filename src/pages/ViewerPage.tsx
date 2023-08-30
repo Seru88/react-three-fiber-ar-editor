@@ -36,17 +36,26 @@ export default function ViewerPage() {
     if (appID) {
       setAppQuery(parseInt(appID))
     }
+    return () => {
+      setAppQuery(null)
+    }
   }, [appID, setAppQuery])
 
   useEffect(() => {
     if (app.isSuccess && app.data) {
       setExpsQuery({ app_id: app.data.id })
     }
+    return () => {
+      setExpsQuery({})
+    }
   }, [app.isSuccess, app.data, setExpsQuery])
 
   useEffect(() => {
     if (expsList.isSuccess && expsList.data.length) {
       setCurrExp(expsList.data[0])
+    }
+    return () => {
+      setCurrExp(null)
     }
   }, [expsList.isSuccess, expsList.data])
 

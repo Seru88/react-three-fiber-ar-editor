@@ -20,6 +20,10 @@ type Props = {
   isInteractive?: boolean
 }
 
+const togglePointerCursor = (toggle: boolean) => () => {
+  document.body.style.cursor = toggle ? 'pointer' : 'auto'
+}
+
 const ModelContentSceneObject: FC<Props> = memo(({ content }) => {
   if (!content.asset.url) return null
   return (
@@ -37,10 +41,10 @@ const ImageContentSceneObject: FC<Props> = memo(
       const { click_action } = content
       if (click_action) {
         switch (click_action.type) {
-          case 'Link':
+          case 'link':
             window.open(click_action.target, '_blank')
             break
-          case 'Email':
+          case 'email':
             window.open(click_action.target, '_blank')
             break
           default:
@@ -63,6 +67,8 @@ const ImageContentSceneObject: FC<Props> = memo(
             }
           }}
           onPointerDown={isInteractive ? handleInteraction : undefined}
+          onPointerOver={isInteractive ? togglePointerCursor(true) : undefined}
+          onPointerOut={isInteractive ? togglePointerCursor(false) : undefined}
         />
       </Resize>
     )
@@ -103,9 +109,11 @@ const VideoContentSceneObject: FC<Props> = memo(
     return (
       <Resize>
         <mesh
-          onPointerDown={isInteractive ? handlePlayback : undefined}
           name={`${content.instance_id}`}
           scale={[texture.image.videoWidth, texture.image.videoHeight, 1]}
+          onPointerDown={isInteractive ? handlePlayback : undefined}
+          onPointerOver={isInteractive ? togglePointerCursor(true) : undefined}
+          onPointerOut={isInteractive ? togglePointerCursor(false) : undefined}
         >
           <planeGeometry />
           <meshBasicMaterial

@@ -218,18 +218,6 @@ export default function EditorPage() {
       if (video.paused) video.play()
       else video.pause()
     }
-    // setCurrAssetContent(prev => {
-    //   if (prev?.playback_settings) {
-    //     return {
-    //       ...prev,
-    //       playback_settings: {
-    //         ...prev.playback_settings,
-    //         is_playing: !prev.playback_settings.is_playing
-    //       }
-    //     }
-    //   }
-    //   return prev
-    // })
   }
 
   const handleAssetVolumeChange = (ev: ChangeEvent<HTMLInputElement>) => {
@@ -385,6 +373,10 @@ export default function EditorPage() {
     if (app.isSuccess && app.data) {
       setExpsQuery({ app_id: app.data.id })
       setEditorApp(app.data)
+    }
+    return () => {
+      setExpsQuery({})
+      setEditorApp(null)
     }
   }, [app.isSuccess, app.data, setExpsQuery, setEditorApp])
 

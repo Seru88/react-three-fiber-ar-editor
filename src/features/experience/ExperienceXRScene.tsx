@@ -72,10 +72,6 @@ const ExperienceXRScene: FC<Props> = ({ experience }) => {
 
   const { onxrloaded /* cubeCamera */ } = XR8Scene(canvasRef, sceneRef)
 
-  useEffect(() => {
-    window.XRExtras.Loading.showLoading({ onxrloaded })
-  }, [onxrloaded])
-
   const handleTouchStart = (event: TouchEvent) => {
     event.preventDefault()
     const surface = surfaceRef.current
@@ -124,11 +120,22 @@ const ExperienceXRScene: FC<Props> = ({ experience }) => {
   }
 
   useEffect(() => {
+    window.XRExtras.Loading.showLoading({ onxrloaded })
+  }, [onxrloaded])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (canvas) {
       canvas.addEventListener('touchstart', handleTouchStart, true)
       canvas.addEventListener('touchmove', handleTouchMove)
       canvas.addEventListener('touchend', handleTouchEnd)
+    }
+    return () => {
+      if (canvas) {
+        canvas.removeEventListener('touchstart', handleTouchStart)
+        canvas.removeEventListener('touchmove', handleTouchMove)
+        canvas.removeEventListener('touchend', handleTouchEnd)
+      }
     }
   }, [])
 
